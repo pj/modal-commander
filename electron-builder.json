@@ -10,7 +10,7 @@
     "dist"
   ],
   "mac": {
-    "artifactName": "${productName}_${version}.${ext}",
+    "artifactName": "modal_commander_${version}.${ext}",
     "target": [
       "dmg",
       "zip"
@@ -25,7 +25,7 @@
         ]
       }
     ],
-    "artifactName": "${productName}_${version}.${ext}"
+    "artifactName": "modal_commander_${version}.${ext}"
   },
   "nsis": {
     "oneClick": false,
