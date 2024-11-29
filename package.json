@@ -21,7 +21,8 @@
   },
   "dependencies": {
     "electron-log": "^5.2.3",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^1.9.0",
