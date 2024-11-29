@@ -94,7 +94,6 @@ jobs:
           path: |
             release/${{ needs.bump-version.outputs.version }}/*.dmg
             release/${{ needs.bump-version.outputs.version }}/*.exe
-            release/${{ needs.bump-version.outputs.version }}/*.pkg
             release/${{ needs.bump-version.outputs.version }}/*.AppImage
             release/${{ needs.bump-version.outputs.version }}/*.snap
           retention-days: 5
@@ -103,7 +102,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "v${{ needs.bump-version.outputs.version }}" "./release/${{ needs.bump-version.outputs.version }}/*" --clobber
+          for file in ./release/${{ needs.bump-version.outputs.version }}/*.{dmg,exe,AppImage,snap}; do
+            if [ -f "$file" ]; then
+              gh release upload "v${{ needs.bump-version.outputs.version }}" "$file" --clobber
+            fi
+          done
 
       - name: Publish Release
         env:
