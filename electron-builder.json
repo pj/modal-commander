@@ -10,11 +10,15 @@
     "dist"
   ],
   "mac": {
-    "artifactName": "modal_commander_${version}.${ext}",
+    "artifactName": "ModalCommander.${ext}",
+    "executableName": "ModalCommander",
     "target": [
       "dmg",
       "zip"
-    ]
+    ],
+    "extendInfo": {
+      "LSUIElement": 1
+    }
   },
   "win": {
     "target": [
@@ -25,7 +29,7 @@
         ]
       }
     ],
-    "artifactName": "modal_commander_${version}.${ext}"
+    "artifactName": "ModalCommander_${version}.${ext}"
   },
   "nsis": {
     "oneClick": false,

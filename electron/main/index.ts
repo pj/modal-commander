@@ -1,9 +1,10 @@
-import { app, BrowserWindow, shell, ipcMain, Menu, Tray } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, Menu, Tray, globalShortcut } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
 import { update } from './update'
+import log from 'electron-log';
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -28,6 +29,13 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, 'public')
   : RENDERER_DIST
 
+log.initialize();
+log.transports.console.level = VITE_DEV_SERVER_URL ? 'silly' : 'info';
+log.transports.file.level = VITE_DEV_SERVER_URL ? 'silly' : 'info';
+log.info('Starting Modal Commander');
+log.silly('VITE_DEV_SERVER_URL', VITE_DEV_SERVER_URL);
+log.silly('VSCODE_DEBUG', process.env.VSCODE_DEBUG);
+
 // Disable GPU Acceleration for Windows 7
 if (os.release().startsWith('6.1')) app.disableHardwareAcceleration()
 
@@ -43,10 +51,14 @@ let win: BrowserWindow | null = null
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
+let tray = null
+
 async function createWindow() {
   win = new BrowserWindow({
     title: 'Main window',
     icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
+    hiddenInMissionControl: true,
+    show: false,
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
@@ -77,6 +89,27 @@ async function createWindow() {
     return { action: 'deny' }
   })
 
+  tray = new Tray(path.join(process.env.VITE_PUBLIC, 'lightningTemplate.png'))
+  tray.setToolTip('Modal Commander')
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Quit', click: () => app.quit() },
+  ])
+  tray.setContextMenu(contextMenu)
+
+  const ret = globalShortcut.register('Command+Control+M', () => {
+    if (win) {
+      if (win.isVisible()) {
+        win.hide();
+      } else {
+        win.show();
+      }
+    }
+  })
+
+  if (!ret) {
+    log.error('registration failed')
+  }
+
   // Auto update
   update(win)
 }
@@ -105,6 +138,11 @@ app.on('activate', () => {
   }
 })
 
+app.on('will-quit', () => {
+  // Unregister all shortcuts.
+  globalShortcut.unregisterAll()
+})
+
 // // New window example arg: new windows url
 // ipcMain.handle('open-win', (_, arg) => {
 //   const childWindow = new BrowserWindow({
@@ -122,12 +160,3 @@ app.on('activate', () => {
 //   }
 // })
 
-let tray = null
-app.whenReady().then(() => {
-  tray = new Tray(path.join(process.env.VITE_PUBLIC, 'lightning.png'))
-  tray.setToolTip('Modal Commander')
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Quit', click: () => app.quit() },
-  ])
-  tray.setContextMenu(contextMenu)
-})
