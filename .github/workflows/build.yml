@@ -1,6 +1,5 @@
 name: Build
 
-# Add these permission settings at the top level
 permissions:
   contents: write
   packages: write
@@ -49,6 +48,15 @@ jobs:
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "Release v${{ steps.version.outputs.version }}" \
+            --notes "Release v${{ steps.version.outputs.version }}" \
+            --draft
+ 
     outputs:
       version: ${{ steps.version.outputs.version }}
 
@@ -86,12 +94,14 @@ jobs:
           path: release/
           retention-days: 5
 
-      - name: Create Release
-        if: matrix.os == 'ubuntu-latest'
+      - name: Upload to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ needs.bump-version.outputs.version }}" \
-            --title "Release v${{ needs.bump-version.outputs.version }}" \
-            --notes "Release v${{ needs.bump-version.outputs.version }}" \
-            ./release/*
+          gh release upload "v${{ needs.bump-version.outputs.version }}" ./release/* --clobber
+
+      - name: Publish Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "v${{ needs.bump-version.outputs.version }}" --draft=false
