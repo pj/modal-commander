@@ -91,14 +91,19 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: release_on_${{ matrix.os }}
-          path: release/
+          path: |
+            release/${{ needs.bump-version.outputs.version }}/*.dmg
+            release/${{ needs.bump-version.outputs.version }}/*.exe
+            release/${{ needs.bump-version.outputs.version }}/*.pkg
+            release/${{ needs.bump-version.outputs.version }}/*.AppImage
+            release/${{ needs.bump-version.outputs.version }}/*.snap
           retention-days: 5
 
       - name: Upload to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "v${{ needs.bump-version.outputs.version }}" ./release/* --clobber
+          gh release upload "v${{ needs.bump-version.outputs.version }}" "./release/${{ needs.bump-version.outputs.version }}/*" --clobber
 
       - name: Publish Release
         env:
