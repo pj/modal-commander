@@ -92,21 +92,35 @@ jobs:
         with:
           name: release_on_${{ matrix.os }}
           path: |
-            release/${{ needs.bump-version.outputs.version }}/*.dmg
-            release/${{ needs.bump-version.outputs.version }}/*.exe
-            release/${{ needs.bump-version.outputs.version }}/*.AppImage
-            release/${{ needs.bump-version.outputs.version }}/*.snap
+            ${{ runner.os == 'Windows' && 'release/${{ needs.bump-version.outputs.version }}/*.{exe,msi}' || '' }}
+            ${{ runner.os == 'macOS' && 'release/${{ needs.bump-version.outputs.version }}/*.dmg' || '' }}
+            ${{ runner.os == 'Linux' && 'release/${{ needs.bump-version.outputs.version }}/*.{AppImage,snap}' || '' }}
           retention-days: 5
 
       - name: Upload to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          for file in ./release/${{ needs.bump-version.outputs.version }}/*.{dmg,exe,AppImage,snap}; do
-            if [ -f "$file" ]; then
-              gh release upload "v${{ needs.bump-version.outputs.version }}" "$file" --clobber
-            fi
-          done
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            for file in ./release/${{ needs.bump-version.outputs.version }}/*.{exe,msi}; do
+              if [ -f "$file" ]; then
+                gh release upload "v${{ needs.bump-version.outputs.version }}" "$file" --clobber
+              fi
+            done
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            for file in ./release/${{ needs.bump-version.outputs.version }}/*.dmg; do
+              if [ -f "$file" ]; then
+                gh release upload "v${{ needs.bump-version.outputs.version }}" "$file" --clobber
+              fi
+            done
+          else
+            for file in ./release/${{ needs.bump-version.outputs.version }}/*.{AppImage,snap}; do
+              if [ -f "$file" ]; then
+                gh release upload "v${{ needs.bump-version.outputs.version }}" "$file" --clobber
+              fi
+            done
+          fi
 
       - name: Publish Release
         env:
