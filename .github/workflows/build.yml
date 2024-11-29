@@ -6,7 +6,7 @@ on:
     paths-ignore:
       - "**.md"
       - "**.spec.js"
-      - ".idea"
+      - "**.idea"
       - ".vscode"
       - ".dockerignore"
       - "Dockerfile"
@@ -15,9 +15,41 @@ on:
       - "!.github/workflows/build.yml"
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Bump Version
+        run: |
+          npm version patch -m "Bump version to %s [skip ci]"
+          git push
+          git push --tags
+
+      - name: Output Version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+  build:
+    needs: bump-version
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
@@ -25,6 +57,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: v${{ needs.bump-version.outputs.version }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -42,6 +77,16 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: release_on_${{ matrix. os }}
+          name: release_on_${{ matrix.os }}
           path: release/
           retention-days: 5
+
+      - name: Create Release
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ needs.bump-version.outputs.version }}" \
+            --title "Release v${{ needs.bump-version.outputs.version }}" \
+            --notes "Release v${{ needs.bump-version.outputs.version }}" \
+            ./release/*
