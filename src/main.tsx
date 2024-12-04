@@ -7,14 +7,22 @@ import { SiteBlockerCommand } from './commands/SiteBlocker'
 import { VolumeCommand } from './commands/VolumeCommand'
 import './index.css'
 import { SelectLayoutCommand } from './window_management/SelectLayoutCommand'
-export function sendMessage(message: any) {
-  // @ts-ignore
-  webkit.messageHandlers.wmui.postMessage(message)
-}
+// export function sendMessage(message: any) {
+//   // @ts-ignore
+//   webkit.messageHandlers.wmui.postMessage(message)
+// }
+
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>
-        <App
+        <button onClick={async () => {
+            console.log('clicked')
+            const url = new URL('mc://modal-commander.net/test');
+            // @ts-ignore
+            await import(url);
+        }}>click me</button>
+        <div>hello html world</div>
+        {/* <App
             sendMessage={sendMessage}
             RootCommand={PrefixSelectCommand}
             RootCommandProps={{
@@ -66,6 +74,6 @@ createRoot(document.getElementById('root')!).render(
             setMessageListener={listener => window.addEventListener('message', listener)}
             removeMessageListener={listener => window.removeEventListener('message', listener)}
             debug={false}
-        />
+        /> */}
     </StrictMode>,
 )

@@ -1,10 +1,12 @@
-import { app, BrowserWindow, shell, ipcMain, Menu, Tray, globalShortcut } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, Menu, Tray, globalShortcut, protocol, net } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
 import { update } from './update'
 import log from 'electron-log';
+import { pathToFileURL } from 'url';
+import { access, readFile } from 'node:fs/promises'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -48,12 +50,125 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win: BrowserWindow | null = null
+let tray: Tray | null = null;
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
-let tray = null
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'mc',
+    privileges: {
+      standard: true,
+      secure: true,
+      // supportFetchAPI: true,
+      // allowServiceWorkers: true,
+      // corsEnabled: true,
+    }
+  }
+]);
 
-async function createWindow() {
+const commandRoots = [
+  path.resolve(process.env.APP_ROOT, 'commands'),
+  path.resolve(app.getPath('userData'), 'commands'),
+]
+
+function setupProtocol() {
+  protocol.handle(
+    'mc', async (req) => {
+      log.silly('mc protocol request', JSON.stringify(req, null, 2))
+      const { hostname, pathname } = new URL(req.url)
+      const pathSplit = pathname.split('/')
+      if (pathSplit.length <= 3) {
+        log.error('at least three path segments required', pathname);
+        return new Response('bad', {
+          status: 400,
+          headers: { 'content-type': 'text/html' }
+        });
+      }
+
+      for (const commandRoot of commandRoots) {
+        const commandHostPath  = path.resolve(commandRoot, hostname)
+
+        const [packageName, commandName, location, ...rest] = pathSplit;
+
+        const packageJsonPath = path.resolve(
+          commandHostPath, 
+          packageName,
+          'package.json'
+        );
+
+        if (!path.isAbsolute(packageJsonPath)) {
+          log.error('mc protocol request has an invalid package.json path', packageJsonPath);
+          break;
+        }
+
+        try {
+          await access(packageJsonPath);
+        } catch (err) {
+          log.error('mc protocol request has a non-existent package.json', packageJsonPath);
+          continue;
+        }
+
+        const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
+
+        const command = packageJson["modal-commander"][commandName];
+
+        if (!command) {
+          log.error('command not found: ', commandName);
+          continue;
+        }
+
+        if (location !== 'renderer' && location !== 'main') {
+          log.error('invalid location: ', location);
+          break;
+        }
+
+        const fileLocation = command[location];
+
+        if (!fileLocation) {
+          log.error('command has no file location: ', commandName);
+          break;
+        }
+
+        const filePath = path.resolve(
+          commandHostPath, 
+          packageName,
+          fileLocation
+        );
+
+        if (!path.isAbsolute(filePath)) {
+          log.error('command has an invalid file path: ', filePath);
+          break;
+        }
+
+        return net.fetch(pathToFileURL(filePath).toString())
+      }
+
+      return new Response('bad', {
+          status: 400,
+          headers: { 'content-type': 'text/html' }
+        })
+    }
+  );
+}
+
+function setupShortcuts() {
+  const ret = globalShortcut.register('Command+Control+M', () => {
+    if (win) {
+      if (win.isVisible()) {
+        win.hide();
+      } else {
+        win.show();
+      }
+    }
+  })
+
+  if (!ret) {
+    log.error('registration failed')
+  }
+}
+
+function setupWindow() {
   win = new BrowserWindow({
     title: 'Main window',
     icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
@@ -88,30 +203,25 @@ async function createWindow() {
     if (url.startsWith('https:')) shell.openExternal(url)
     return { action: 'deny' }
   })
+}
 
+function setupTray() {
   tray = new Tray(path.join(process.env.VITE_PUBLIC, 'lightningTemplate.png'))
   tray.setToolTip('Modal Commander')
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Quit', click: () => app.quit() },
   ])
-  tray.setContextMenu(contextMenu)
+  tray.setContextMenu(contextMenu);
+}
 
-  const ret = globalShortcut.register('Command+Control+M', () => {
-    if (win) {
-      if (win.isVisible()) {
-        win.hide();
-      } else {
-        win.show();
-      }
-    }
-  })
-
-  if (!ret) {
-    log.error('registration failed')
-  }
+async function createWindow() {
+  setupProtocol();
+  setupWindow();
+  setupTray();
+  setupShortcuts();
 
   // Auto update
-  update(win)
+  update(win as BrowserWindow);
 }
 
 app.whenReady().then(createWindow)
@@ -142,6 +252,7 @@ app.on('will-quit', () => {
   // Unregister all shortcuts.
   globalShortcut.unregisterAll()
 })
+
 
 // // New window example arg: new windows url
 // ipcMain.handle('open-win', (_, arg) => {

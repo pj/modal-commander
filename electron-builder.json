@@ -9,6 +9,9 @@
     "dist-electron",
     "dist"
   ],
+  "extraFiles": [
+    "commands"
+  ],
   "mac": {
     "artifactName": "ModalCommander.${ext}",
     "executableName": "ModalCommander",
