@@ -1,13 +1,16 @@
 import { createContext, useCallback, useEffect, useReducer, useState } from 'react'
 import './index.css'
 import React from 'react';
+import { ipcRenderer } from 'electron';
 
-type AppProps<RootCommandProps> = {
-    sendMessage: (message: any) => void,
-    setMessageListener: (listener: (event: MessageEvent) => void) => void,
-    removeMessageListener: (listener: (event: MessageEvent) => void) => void,
-    RootCommand: React.ComponentType<RootCommandProps>,
-    RootCommandProps: RootCommandProps,
+type AppProps
+// <RootCommandProps> 
+= {
+    // sendMessage: (message: any) => void,
+    // setMessageListener: (listener: (event: MessageEvent) => void) => void,
+    // removeMessageListener: (listener: (event: MessageEvent) => void) => void,
+    // RootCommand: React.ComponentType<RootCommandProps>,
+    // RootCommandProps: RootCommandProps,
     debug: boolean,
 }
 
@@ -27,7 +30,7 @@ class AppErrorBoundary extends React.Component<any, any> {
     }
 
     componentDidCatch(error: any, errorInfo: any) {
-        this.props.sendMessage({ type: 'log', log: `error: ${error}, errorInfo: ${errorInfo}` })
+        this.props.sendMessage({ type: 'error', error: error, errorInfo: errorInfo })
     }
 
     render() {
@@ -39,15 +42,17 @@ class AppErrorBoundary extends React.Component<any, any> {
     }
 }
 
-function App<RootCommandProps>(
+function App(
     {
-        sendMessage,
-        setMessageListener,
-        removeMessageListener,
-        RootCommand,
-        RootCommandProps,
+        // sendMessage,
+        // setMessageListener,
+        // removeMessageListener,
+        // RootCommand,
+        // RootCommandProps,
         debug
-    }: AppProps<RootCommandProps>) {
+    }: AppProps
+    // <RootCommandProps>
+) {
     const [appState, dispatchAppState] = useReducer((state: any, action: any) => {
         if (action.type === 'resetState') {
             return { hammerspoonReady: true, cacheBusterKey: Math.random() }
@@ -69,20 +74,23 @@ function App<RootCommandProps>(
     }, []);
 
     useEffect(() => {
-        setMessageListener(handleMessage)
-
-        sendMessage({
-            type: 'uiReady'
-        });
+        ipcRenderer.on('message', handleMessage)
+        ipcRenderer.invoke('page-ready').then((config: any) => {
+            console.log('config', config)
+        })
 
         return () => {
-            removeMessageListener(handleMessage)
+            ipcRenderer.off('message', handleMessage)
         }
     }, [handleMessage])
 
+    const sendMessage = useCallback((message: any) => {
+        ipcRenderer.send('renderer-message', message)
+    }, []);
+
     const handleExit = useCallback(() => {
-        sendMessage({ type: 'exit' })
-    }, [sendMessage]);
+        ipcRenderer.send('exit')
+    }, []);
 
     return (
         <AppErrorBoundary sendMessage={sendMessage}>
@@ -92,7 +100,7 @@ function App<RootCommandProps>(
                         {
                             appState.hammerspoonReady ? (
                                 <div key={appState.cacheBusterKey} className="bg-gray-100 shadow-xl flex flex-row flex-nowrap justify-start space-x-2.5 items-stretch border border-gray-200 rounded-lg p-2.5 h-full">
-                                    <RootCommand index={0} {...RootCommandProps} />
+                                    <appState.RootCommand index={0} {...appState.RootCommandProps} />
                                 </div>
                             ) : (
                                 <div data-testid="app-loading">Loading...</div>

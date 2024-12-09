@@ -7,6 +7,7 @@ import { update } from './update'
 import log from 'electron-log';
 import { pathToFileURL } from 'url';
 import { access, readFile } from 'node:fs/promises'
+import { ModalCommanderConfigSchema, ModalCommanderConfig } from './modal_commander_config'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -214,11 +215,30 @@ function setupTray() {
   tray.setContextMenu(contextMenu);
 }
 
+let config: ModalCommanderConfig | null = null;
+
 async function createWindow() {
   setupProtocol();
   setupWindow();
   setupTray();
   setupShortcuts();
+
+  // Handle once the page is loaded and has be
+  ipcMain.handleOnce('page-ready', async () => {
+    if (!config) {
+      config = ModalCommanderConfigSchema.parse(
+        await readFile(
+          path.resolve(app.getPath('userData'), 'config.json'), 
+          'utf8'
+        )
+      );
+    }
+
+    ipcMain.on('renderer-message', (event, message) => {
+      log.info('renderer-message', message)
+    })
+    return config;
+  });
 
   // Auto update
   update(win as BrowserWindow);
