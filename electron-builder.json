@@ -20,7 +20,8 @@
       "zip"
     ],
     "extendInfo": {
-      "LSUIElement": 1
+      "LSUIElement": 1,
+      "CFBundleDisplayName": "Modal Commander"
     }
   },
   "win": {

@@ -1,1 +1,5 @@
-import { createRoot } from 'react-dom/client'
+import { TextCommandMain } from "./TextCommandMain";
+
+export default {
+    TextCommand: TextCommandMain
+}

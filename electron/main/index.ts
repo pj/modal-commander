@@ -1,15 +1,24 @@
-import { app, BrowserWindow, shell, ipcMain, Menu, Tray, globalShortcut, protocol, net } from 'electron'
-import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  ipcMain,
+  Menu,
+  net,
+  protocol,
+  shell,
+  Tray
+} from 'electron'
+import log from 'electron-log'
+import { readFile } from 'node:fs/promises'
 import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { pathToFileURL } from 'url'
+import { ModalCommanderConfig, ModalCommanderConfigSchema } from './modal_commander_config'
 import { update } from './update'
-import log from 'electron-log';
-import { pathToFileURL } from 'url';
-import { access, readFile } from 'node:fs/promises'
-import { ModalCommanderConfigSchema, ModalCommanderConfig } from './modal_commander_config'
+import { readdirSync, statSync } from 'node:fs'
 
-const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
@@ -31,6 +40,11 @@ export const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, 'public')
   : RENDERER_DIST
+
+if (VITE_DEV_SERVER_URL) {
+  app.setPath('userData', path.join(os.homedir(), 'Library/Application Support/Modal Commander'))
+}
+
 
 log.initialize();
 log.transports.console.level = VITE_DEV_SERVER_URL ? 'silly' : 'info';
@@ -79,76 +93,50 @@ function setupProtocol() {
       log.silly('mc protocol request', JSON.stringify(req, null, 2))
       const { hostname, pathname } = new URL(req.url)
       const pathSplit = pathname.split('/')
-      if (pathSplit.length <= 3) {
+      if (pathSplit.length > 3) {
         log.error('at least three path segments required', pathname);
         return new Response('bad', {
           status: 400,
-          headers: { 'content-type': 'text/html' }
+          headers: { 
+            'Cache-Control': 'no-store, no-cache, must-revalidate'
+          }
         });
       }
 
       for (const commandRoot of commandRoots) {
-        const commandHostPath  = path.resolve(commandRoot, hostname)
-
-        const [packageName, commandName, location, ...rest] = pathSplit;
-
-        const packageJsonPath = path.resolve(
-          commandHostPath, 
-          packageName,
-          'package.json'
-        );
-
-        if (!path.isAbsolute(packageJsonPath)) {
-          log.error('mc protocol request has an invalid package.json path', packageJsonPath);
-          break;
-        }
-
-        try {
-          await access(packageJsonPath);
-        } catch (err) {
-          log.error('mc protocol request has a non-existent package.json', packageJsonPath);
-          continue;
-        }
-
-        const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
-
-        const command = packageJson["modal-commander"][commandName];
-
-        if (!command) {
-          log.error('command not found: ', commandName);
-          continue;
-        }
-
-        if (location !== 'renderer' && location !== 'main') {
-          log.error('invalid location: ', location);
-          break;
-        }
-
-        const fileLocation = command[location];
-
-        if (!fileLocation) {
-          log.error('command has no file location: ', commandName);
-          break;
-        }
+        const [_, packageNamespace, packageName] = pathSplit;
 
         const filePath = path.resolve(
-          commandHostPath, 
+          commandRoot, 
+          packageNamespace,
           packageName,
-          fileLocation
+          "dist",
+          "renderer.js",
         );
 
         if (!path.isAbsolute(filePath)) {
-          log.error('command has an invalid file path: ', filePath);
-          break;
+          log.warn('Command not found: ', filePath);
+          continue;
         }
 
-        return net.fetch(pathToFileURL(filePath).toString())
+        const response = await net.fetch(pathToFileURL(filePath).toString())
+        return new Response(response.body, {
+          headers: {
+            ...response.headers,
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'content-type': 'application/javascript',
+          }
+        })
       }
 
       return new Response('bad', {
-          status: 400,
-          headers: { 'content-type': 'text/html' }
-        })
+        status: 400,
+        headers: { 
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+      })
     }
   );
 }
@@ -217,28 +205,65 @@ function setupTray() {
 
 let config: ModalCommanderConfig | null = null;
 
+let messageListeners: Map<string, any> = new Map();
+
 async function createWindow() {
+  if (!config) {
+    const configData = await readFile(
+        path.resolve(app.getPath('userData'), 'config.json'), 
+        'utf8'
+      )
+    config = ModalCommanderConfigSchema.parse(JSON.parse(configData));
+  }
+
+  for (const commandRoot of commandRoots) {
+    try {
+      const namespaces = readdirSync(commandRoot, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        
+      for (const namespace of namespaces) {
+        const namespacePath = path.join(commandRoot, namespace.name)
+        const packages = readdirSync(namespacePath, { withFileTypes: true })
+          .filter(dirent => dirent.isDirectory())
+        
+        for (const pkg of packages) {
+          const mainPath = path.resolve(
+            namespacePath,
+            pkg.name,
+            'dist',
+            'main.js'
+          )
+
+          try {
+            statSync(mainPath)
+            // Load and initialize the command's main process code
+            const packageMain = await import(pathToFileURL(mainPath).toString())
+            for (const [commandName, commandClass] of Object.entries(packageMain.default)) {
+              messageListeners.set(`${namespace.name}.${pkg.name}.${commandName}`, new (commandClass as any)())
+            }
+          } catch (err) {
+            log.warn(`Could not load command main process code: ${mainPath}`, err)
+          }
+        }
+      }
+    } catch (err) {
+      log.warn(`Could not read command root: ${commandRoot}`, err)
+    }
+  }
+
   setupProtocol();
   setupWindow();
   setupTray();
   setupShortcuts();
 
   // Handle once the page is loaded and has be
-  ipcMain.handleOnce('page-ready', async () => {
-    if (!config) {
-      config = ModalCommanderConfigSchema.parse(
-        await readFile(
-          path.resolve(app.getPath('userData'), 'config.json'), 
-          'utf8'
-        )
-      );
-    }
-
-    ipcMain.on('renderer-message', (event, message) => {
-      log.info('renderer-message', message)
-    })
+  ipcMain.handle('page-ready', async () => {
     return config;
   });
+
+  ipcMain.on('renderer-message', (event, message) => {
+    log.info('renderer-message', message)
+  })
 
   // Auto update
   update(win as BrowserWindow);
@@ -253,7 +278,6 @@ app.on('window-all-closed', () => {
 
 app.on('second-instance', () => {
   if (win) {
-    // Focus on the main window if the user tried to open another
     if (win.isMinimized()) win.restore()
     win.focus()
   }
@@ -272,22 +296,3 @@ app.on('will-quit', () => {
   // Unregister all shortcuts.
   globalShortcut.unregisterAll()
 })
-
-
-// // New window example arg: new windows url
-// ipcMain.handle('open-win', (_, arg) => {
-//   const childWindow = new BrowserWindow({
-//     webPreferences: {
-//       preload,
-//       nodeIntegration: true,
-//       contextIsolation: false,
-//     },
-//   })
-
-//   if (VITE_DEV_SERVER_URL) {
-//     childWindow.loadURL(`${VITE_DEV_SERVER_URL}#${arg}`)
-//   } else {
-//     childWindow.loadFile(indexHtml, { hash: arg })
-//   }
-// })
-

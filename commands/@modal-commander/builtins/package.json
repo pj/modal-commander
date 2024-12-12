@@ -1,15 +1,23 @@
 {
   "name": "@modal-commander/builtins",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "exports": {
+    "./main": "./dist/main.js",
+    "./renderer": "./dist/renderer.js"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "vite build",
+    "build:watch": "vite build --watch"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
   },
   "devDependencies": {
-    "typescript": "~5.6.2",
-    "vite": "^6.0.1"
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.0.0"
   }
 }

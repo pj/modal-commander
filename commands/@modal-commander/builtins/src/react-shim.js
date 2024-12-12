@@ -1,0 +1,16 @@
+const React = window.React;
+export default React;
+export const jsx = React.createElement;
+export const jsxs = React.createElement;
+export const Fragment = React.Fragment;
+export const useState = React.useState;
+export const useEffect = React.useEffect;
+export const useLayoutEffect = React.useLayoutEffect;
+export const useContext = React.useContext;
+export const useRef = React.useRef;
+export const useMemo = React.useMemo;
+export const useCallback = React.useCallback;
+export const createContext = React.createContext;
+export const memo = React.memo;
+export const forwardRef = React.forwardRef;
+export const Context = React.Context;
