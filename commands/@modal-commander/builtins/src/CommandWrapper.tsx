@@ -9,8 +9,8 @@ export type CommandWrapperProps = DefaultCommandProps & {
     testIdPrefix: string,
     headerText: string,
     inner: React.ReactNode | null,
-    next: React.ReactNode | null
-    keyHandler: (event: React.KeyboardEvent<HTMLDivElement>) => void
+    next?: React.ReactNode | null
+    keyHandler?: (event: React.KeyboardEvent<HTMLDivElement>) => void
 }
 
 type Focus = {
@@ -55,8 +55,13 @@ export function CommandHeader(props: { text: string }) {
 }
 
 export function CommandWrapper(props: CommandWrapperProps) {
+    const [_, wrapper] = CommandWrapperWithFocus(props)
+    return wrapper
+}
+
+export function CommandWrapperWithFocus(props: CommandWrapperProps): [(focus: boolean) => void, JSX.Element] {
     const { wrapperElement, setFocus } = useFocus()
-    const {handleExit} = useContext(window.ModalCommanderContext)
+    const { handleExit } = useContext(window.ModalCommanderContext)
 
     function keyHandler(event: React.KeyboardEvent<HTMLDivElement>) {
         event.preventDefault()
@@ -68,22 +73,27 @@ export function CommandWrapper(props: CommandWrapperProps) {
             props.handleDelete();
             return;
         }
-        props.keyHandler(event)
+        if (props.keyHandler) {
+            props.keyHandler(event)
+        }
     }
 
-    return <>
-        <div
-            key={props.index}
-            {...defaultCommandProps(props.index, props.testIdPrefix, wrapperElement, setFocus)}
-            onKeyDown={keyHandler}
-        >
-            <CommandHeader text={props.headerText} />
-            {
-                props.inner 
-                ?  props.inner 
-                : <span data-testid={props.testIdPrefix + "-loading"} className="loading loading-bars loading-xl">Loading...</span>
-            }
-        </div>
-        {props.next}
-    </>
+    return [
+        setFocus,
+        <>
+            <div
+                key={props.index}
+                {...defaultCommandProps(props.index, props.testIdPrefix, wrapperElement, setFocus)}
+                onKeyDown={keyHandler}
+            >
+                <CommandHeader text={props.headerText} />
+                {
+                    props.inner
+                        ? props.inner
+                        : <span data-testid={props.testIdPrefix + "-loading"} className="loading loading-bars loading-xl">Loading...</span>
+                }
+            </div>
+            {props.next}
+        </>
+    ];
 }

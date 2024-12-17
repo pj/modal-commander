@@ -31,7 +31,7 @@ class AppErrorBoundary extends React.Component<any, any> {
     }
 
     componentDidCatch(error: any, errorInfo: any) {
-        this.props.sendMessage({ type: 'error', error: error, errorInfo: errorInfo })
+        this.props.sendMessage({ command: 'error', error: error, errorInfo: errorInfo })
     }
 
     render() {
@@ -57,6 +57,7 @@ function App({ debug }: AppProps) {
     const [lastMessage, setLastMessage] = useState<any>(null);
 
     const handleMessage = useCallback((event: any) => {
+        console.log('main-message received:', event)
         // sendMessage({ type: 'log', log: `received message: ${JSON.stringify(event.data)}` })
         if (event.data.type === 'resetState') {
             dispatchAppState({ type: 'resetState' });
@@ -68,7 +69,7 @@ function App({ debug }: AppProps) {
 
     useEffect(() => {
         console.log('reloading')
-        window.ipcRenderer.on('message', handleMessage)
+        window.ipcRenderer.on('main-message', handleMessage);
         window.ipcRenderer.invoke('page-ready').then((config: any) => {
             // console.log('config', config)
             import(`mc://commands/${config.rootCommand.package}`).then((module: any) => {
@@ -86,16 +87,16 @@ function App({ debug }: AppProps) {
         })
 
         return () => {
-            window.ipcRenderer.off('message', handleMessage)
+            window.ipcRenderer.off('main-message', handleMessage)
         }
     }, []);
 
     const sendMessage = useCallback((message: any) => {
-        window.ipcRenderer.send('renderer-message', message)
+        window.ipcRenderer.send('renderer-message', message);
     }, []);
 
     const handleExit = useCallback(() => {
-        window.ipcRenderer.send('exit')
+        window.ipcRenderer.send('renderer-message', { command: 'hide' });
     }, []);
 
     console.log('appState', appState)

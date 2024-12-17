@@ -261,8 +261,32 @@ async function createWindow() {
     return config;
   });
 
+  messageListeners.set('hide', new (class {
+    onMessage(message: any) {
+      log.silly('hide message received:', message)
+      win?.hide();
+      win?.webContents.send('main-message', { type: 'resetState' });
+    }
+  }));
+
+  messageListeners.set('quit', new (class {
+    onMessage(message: any) {
+      log.silly('quit message received:', message)
+      app.quit();
+    }
+  }));
+
   ipcMain.on('renderer-message', (event, message) => {
-    log.info('renderer-message', message)
+    log.silly('message received:', message)
+    const command = message.command;
+    const listener = messageListeners.get(command);
+    if (listener) {
+      log.silly('listener found:', listener)
+      listener.onMessage(message);
+      return;
+    }
+    
+    throw new Error('No listener found for command: ' + command);
   })
 
   // Auto update
