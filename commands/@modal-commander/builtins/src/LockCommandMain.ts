@@ -1,15 +1,22 @@
-import log from "electron-log";
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execAsync = promisify(exec);
 
 export class LockCommandMain {
-    onStart() {
-        console.log('onStart')
-    }
+  async onStart(packagePath: string) {
+    // Initialization code if needed
+  }
 
-    onStop() {
-        console.log('onStop')
+  async onMessage(message: any) {
+    try {
+      await execAsync('open -a ScreenSaverEngine');
+    } catch (error) {
+      console.error('Failed to lock screen:', error);
     }
-
-    onMessage(message: any) {
-        log.silly('locking screen');
-    }
+  }
 }
+
+export default {
+  LockCommandMain
+};

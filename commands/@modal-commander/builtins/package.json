@@ -8,9 +8,12 @@
   },
   "scripts": {
     "build": "vite build",
-    "build:watch": "vite build --watch"
+    "build:watch": "vite build --watch",
+    "build:native": "node-gyp configure build && npm run copy-binary",
+    "copy-binary": "mkdir -p dist && cp build/Release/LockCommand.node dist/"
   },
   "dependencies": {
+    "node-addon-api": "^8.3.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },

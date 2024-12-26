@@ -227,9 +227,9 @@ async function createWindow() {
           .filter(dirent => dirent.isDirectory())
         
         for (const pkg of packages) {
+          const packagePath = path.resolve(namespacePath, pkg.name);
           const mainPath = path.resolve(
-            namespacePath,
-            pkg.name,
+            packagePath,
             'dist',
             'main.js'
           )
@@ -239,7 +239,9 @@ async function createWindow() {
             // Load and initialize the command's main process code
             const packageMain = await import(pathToFileURL(mainPath).toString())
             for (const [commandName, commandClass] of Object.entries(packageMain.default)) {
-              messageListeners.set(`${namespace.name}.${pkg.name}.${commandName}`, new (commandClass as any)())
+              const listener = new (commandClass as any)();
+              await listener.onStart(packagePath);
+              messageListeners.set(`${namespace.name}.${pkg.name}.${commandName}`, listener)
             }
           } catch (err) {
             log.warn(`Could not load command main process code: ${mainPath}`, err)
@@ -293,7 +295,19 @@ async function createWindow() {
   update(win as BrowserWindow);
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(async () => {
+  try {
+    await createWindow()
+  } catch (error) {
+    log.error('Failed to create window:', error)
+    app.quit()
+    process.exit(1)
+  }
+}).catch(error => {
+  log.error('Failed during app ready:', error)
+  app.quit()
+  process.exit(1)
+})
 
 app.on('window-all-closed', () => {
   win = null

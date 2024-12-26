@@ -3,22 +3,6 @@ import { defineConfig } from 'vite'
 import path from 'path'
 
 export default defineConfig({
-  // plugins: [
-  //   react({
-  //       // jsxRuntime: 'classic',
-  //   })
-  // ],
-  //   esbuild: {
-  //       jsx: 'transform',
-  //       jsxFactory: `window.React.createElement`,
-  //       jsxFragment: `window.React.Fragment`,
-  //   },
-  //   resolve: {
-  //       alias: {
-  //           react: path.resolve(__dirname, 'src/react-shim.js'),
-  //           'react-dom': path.resolve(__dirname, 'src/react-dom-shim.js'),
-  //       },
-  //   },
   plugins: [],
   resolve: {
     alias: {
@@ -43,7 +27,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['electron'],
+      external: ['electron', 'electron-log', 'node:path', 'node:module', 'node:child_process', 'node:util'],
       output: {
         dir: 'dist',
         entryFileNames: '[name].js',

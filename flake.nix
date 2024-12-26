@@ -13,6 +13,7 @@
           deps = rec {
             jq = pkgs.jq;
             nodejs_20 = pkgs.nodejs_20;
+            node-gyp = pkgs.nodePackages.node-gyp;
             python312 = pkgs.python312;
             default = nodejs_20;
           };
