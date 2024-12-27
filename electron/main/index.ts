@@ -18,6 +18,7 @@ import { pathToFileURL } from 'url'
 import { ModalCommanderConfig, ModalCommanderConfigSchema } from './modal_commander_config'
 import { update } from './update'
 import { readdirSync, statSync } from 'node:fs'
+import { CommandDatabase } from './database'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -207,14 +208,20 @@ let config: ModalCommanderConfig | null = null;
 
 let messageListeners: Map<string, any> = new Map();
 
+let db: CommandDatabase
+
 async function createWindow() {
   if (!config) {
-    const configData = await readFile(
+    config = ModalCommanderConfigSchema.parse(
+      await readFile(
         path.resolve(app.getPath('userData'), 'config.json'), 
         'utf8'
       )
-    config = ModalCommanderConfigSchema.parse(JSON.parse(configData));
+    );
   }
+
+  // Initialize database
+  db = new CommandDatabase(path.join(app.getPath('userData'), 'commands.db'))
 
   for (const commandRoot of commandRoots) {
     try {
@@ -236,10 +243,9 @@ async function createWindow() {
 
           try {
             statSync(mainPath)
-            // Load and initialize the command's main process code
             const packageMain = await import(pathToFileURL(mainPath).toString())
             for (const [commandName, commandClass] of Object.entries(packageMain.default)) {
-              const listener = new (commandClass as any)();
+              const listener = new (commandClass as any)(db);  // Pass database instance here
               await listener.onStart(packagePath);
               messageListeners.set(`${namespace.name}.${pkg.name}.${commandName}`, listener)
             }

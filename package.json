@@ -20,6 +20,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "better-sqlite3": "^11.7.0",
     "electron-log": "^5.2.3",
     "electron-updater": "^6.3.9",
     "zod": "^3.23.8"

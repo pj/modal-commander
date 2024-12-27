@@ -5,7 +5,6 @@ const execAsync = promisify(exec);
 
 export class LockCommandMain {
   async onStart(packagePath: string) {
-    // Initialization code if needed
   }
 
   async onMessage(message: any) {
