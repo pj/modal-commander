@@ -10,7 +10,8 @@
     "build": "vite build",
     "build:watch": "vite build --watch",
     "build:native": "node-gyp configure build && npm run copy-binary",
-    "copy-binary": "mkdir -p dist && cp build/Release/LockCommand.node dist/"
+    "copy-binary": "mkdir -p dist && cp build/Release/LockCommand.node dist/",
+    "site-blocker-test": "tsx src/site_blocker_test_script.ts"
   },
   "dependencies": {
     "node-addon-api": "^8.3.0",
@@ -21,6 +22,7 @@
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@vitejs/plugin-react": "^4.0.0",
+    "tsx": "^4.19.2",
     "vite": "^4.0.0"
   }
 }
