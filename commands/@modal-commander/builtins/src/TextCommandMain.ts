@@ -1,6 +1,5 @@
 export class TextCommandMain {
     onStart() {
-        console.log('onStart')
     }
 
     onStop() {

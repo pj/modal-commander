@@ -19,6 +19,8 @@ import { ModalCommanderConfig, ModalCommanderConfigSchema } from './modal_comman
 import { update } from './update'
 import { readdirSync, statSync } from 'node:fs'
 import { CommandDatabase } from './database'
+import { setupProtocol } from './protocol'
+import { loadCommand } from './command'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -70,91 +72,42 @@ let tray: Tray | null = null;
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
-protocol.registerSchemesAsPrivileged([
-  {
-    scheme: 'mc',
-    privileges: {
-      standard: true,
-      secure: true,
-      // supportFetchAPI: true,
-      // allowServiceWorkers: true,
-      // corsEnabled: true,
-    }
-  }
-]);
-
 const commandRoots = [
   path.resolve(process.env.APP_ROOT, 'commands'),
   path.resolve(app.getPath('userData'), 'commands'),
 ]
 
-function setupProtocol() {
-  protocol.handle(
-    'mc', async (req) => {
-      log.silly('mc protocol request', JSON.stringify(req, null, 2))
-      const { hostname, pathname } = new URL(req.url)
-      const pathSplit = pathname.split('/')
-      if (pathSplit.length > 3) {
-        log.error('at least three path segments required', pathname);
-        return new Response('bad', {
-          status: 400,
-          headers: { 
-            'Cache-Control': 'no-store, no-cache, must-revalidate'
+let lastHotkey: any = null;
+
+function setupShortcuts(config: ModalCommanderConfig, messageListeners: Map<string, any>) {
+  for (const hotkey of config.hotkeys) {
+    const ret = globalShortcut.register(hotkey.key, async() => {
+      if (win) {
+        if (hotkey.type === 'command') {
+          if (win.isVisible()) {
+            win.hide();
+          } else {
+            lastHotkey = hotkey;
+            log.silly('sending setRootCommand message:', hotkey)
+            win.webContents.send('main-message', { type: 'setRootCommand', data: hotkey });
+            win.show();
           }
-        });
-      }
-
-      for (const commandRoot of commandRoots) {
-        const [_, packageNamespace, packageName] = pathSplit;
-
-        const filePath = path.resolve(
-          commandRoot, 
-          packageNamespace,
-          packageName,
-          "dist",
-          "renderer.js",
-        );
-
-        if (!path.isAbsolute(filePath)) {
-          log.warn('Command not found: ', filePath);
-          continue;
-        }
-
-        const response = await net.fetch(pathToFileURL(filePath).toString())
-        return new Response(response.body, {
-          headers: {
-            ...response.headers,
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'content-type': 'application/javascript',
+        } else if (hotkey.type === 'operation') {
+          const listener = messageListeners.get(hotkey.name);
+          if (listener) {
+            log.silly('listener found:', listener)
+            await listener.onMessage(hotkey.message);
+            return;
           }
-        })
-      }
-
-      return new Response('bad', {
-        status: 400,
-        headers: { 
-          'Cache-Control': 'no-store, no-cache, must-revalidate'
+          
+          throw new Error('No listener found for command: ' + hotkey.name);
         }
-      })
-    }
-  );
-}
-
-function setupShortcuts() {
-  const ret = globalShortcut.register('Command+Control+M', () => {
-    if (win) {
-      if (win.isVisible()) {
-        win.hide();
-      } else {
-        win.show();
       }
-    }
-  })
+    });
 
-  if (!ret) {
-    log.error('registration failed')
+    if (!ret) {
+      log.error('registration failed')
+    }
   }
 }
 
@@ -184,9 +137,9 @@ function setupWindow() {
   }
 
   // Test actively push message to the Electron-Renderer
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', new Date().toLocaleString())
-  })
+  // win.webContents.on('did-finish-load', () => {
+  //   win?.webContents.send('main-process-message', new Date().toLocaleString())
+  // })
 
   // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -206,68 +159,23 @@ function setupTray() {
 
 let config: ModalCommanderConfig | null = null;
 
-let messageListeners: Map<string, any> = new Map();
-
 let db: CommandDatabase
 
 async function createWindow() {
   if (!config) {
-    config = ModalCommanderConfigSchema.parse(
-      await readFile(
-        path.resolve(app.getPath('userData'), 'config.json'), 
-        'utf8'
-      )
-    );
+    const configPath = path.resolve(app.getPath('userData'), 'config.json');
+    const configData = await readFile(configPath, 'utf8');
+    config = ModalCommanderConfigSchema.parse(JSON.parse(configData));
   }
 
   // Initialize database
   db = new CommandDatabase(path.join(app.getPath('userData'), 'commands.db'))
 
-  for (const commandRoot of commandRoots) {
-    try {
-      const namespaces = readdirSync(commandRoot, { withFileTypes: true })
-        .filter(dirent => dirent.isDirectory())
-        
-      for (const namespace of namespaces) {
-        const namespacePath = path.join(commandRoot, namespace.name)
-        const packages = readdirSync(namespacePath, { withFileTypes: true })
-          .filter(dirent => dirent.isDirectory())
-        
-        for (const pkg of packages) {
-          const packagePath = path.resolve(namespacePath, pkg.name);
-          const mainPath = path.resolve(
-            packagePath,
-            'dist',
-            'main.js'
-          )
-
-          try {
-            statSync(mainPath)
-            const packageMain = await import(pathToFileURL(mainPath).toString())
-            for (const [commandName, commandClass] of Object.entries(packageMain.default)) {
-              const listener = new (commandClass as any)(db);  // Pass database instance here
-              await listener.onStart(packagePath);
-              messageListeners.set(`${namespace.name}.${pkg.name}.${commandName}`, listener)
-            }
-          } catch (err) {
-            log.warn(`Could not load command main process code: ${mainPath}`, err)
-          }
-        }
-      }
-    } catch (err) {
-      log.warn(`Could not read command root: ${commandRoot}`, err)
-    }
-  }
-
-  setupProtocol();
+  const messageListeners = await loadCommand(db, config, commandRoots);
+  setupProtocol(commandRoots);
   setupWindow();
   setupTray();
-  setupShortcuts();
-
-  // Handle once the page is loaded and has be
-  ipcMain.handle('page-ready', async () => {
-    return config;
-  });
+  setupShortcuts(config, messageListeners);
 
   messageListeners.set('hide', new (class {
     onMessage(message: any) {
@@ -295,6 +203,24 @@ async function createWindow() {
     }
     
     throw new Error('No listener found for command: ' + command);
+  })
+
+  ipcMain.handle('renderer-invoke', async (event, message) => {
+    log.silly('message received:', message)
+    const command = message.command;
+    const listener = messageListeners.get(command);
+    if (listener) {
+      log.silly('listener found:', listener);
+      return await listener.onInvoke(message);
+    }
+    
+    throw new Error('No listener found for command: ' + command);
+  })
+
+  win?.webContents.on('did-finish-load', () => {
+    if (lastHotkey) {
+      win?.webContents.send('main-message', { type: 'setRootCommand', data: lastHotkey });
+    }
   })
 
   // Auto update

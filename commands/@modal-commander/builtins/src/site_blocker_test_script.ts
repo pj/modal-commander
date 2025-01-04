@@ -25,5 +25,5 @@ const siteBlocker = new SiteBlockerMain(database, {
 
 const state = await siteBlocker.onMessage({ type: 'toggle' });
 console.log(state);
-const state2 = await siteBlocker.onMessage({ type: 'toggle' });
-console.log(state2);
+// const state2 = await siteBlocker.onMessage({ type: 'toggle' });
+// console.log(state2);

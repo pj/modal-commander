@@ -2,14 +2,7 @@ import { createContext, useCallback, useEffect, useReducer, useState } from 'rea
 import './index.css'
 import React from 'react';
 
-type AppProps
-    // <RootCommandProps> 
-    = {
-        // sendMessage: (message: any) => void,
-        // setMessageListener: (listener: (event: MessageEvent) => void) => void,
-        // removeMessageListener: (listener: (event: MessageEvent) => void) => void,
-        // RootCommand: React.ComponentType<RootCommandProps>,
-        // RootCommandProps: RootCommandProps,
+type AppProps = {
         debug: boolean,
     }
 
@@ -44,47 +37,92 @@ class AppErrorBoundary extends React.Component<any, any> {
 }
 
 function App({ debug }: AppProps) {
-    const [appState, dispatchAppState] = useReducer((state: any, action: any) => {
-        if (action.type === 'resetState') {
-            return { rootComponent: state.rootComponent, rootProps: state.rootProps, cacheBusterKey: Math.random() }
-        } else if (action.type === 'updateState') {
-            return { ...state, ...action.data }
-        } else if (action.type === 'loadConfig') {
-            return { rootComponent: action.data.rootComponent, rootProps: action.data.rootProps, cacheBusterKey: Math.random() }
-        }
-    }, { rootComponent: null, rootProps: null, cacheBusterKey: Math.random() });
+    const [appState, dispatchAppState] = useReducer(
+        (state: any, action: any) => {
+            if (action.type === 'resetState') {
+                return { 
+                    rootComponent: state.rootComponent, 
+                    rootProps: state.rootProps, 
+                    cacheBusterKey: Math.random(),
+                    componentCache: {}
+                }
+            } else if (action.type === 'updateState') {
+                return { ...state, ...action.data }
+            } else if (action.type === 'loadConfig') {
+                return { 
+                    rootComponent: action.data.rootComponent, 
+                    rootProps: action.data.rootProps, 
+                    cacheBusterKey: Math.random(),
+                    componentCache: {
+                        ...state.componentCache,
+                        [action.data.rootComponent.name]: action.data.rootComponent
+                    }
+                }
+            }
+        }, 
+        { 
+            rootComponent: null, 
+            rootProps: null, 
+            cacheBusterKey: Math.random(), 
+            componentCache: {} 
+        },
+    );
 
     const [lastMessage, setLastMessage] = useState<any>(null);
 
-    const handleMessage = useCallback((event: any) => {
-        console.log('main-message received:', event)
+    const handleMessage = useCallback((event: any, message: any) => {
+        // console.log('main-message event received:', event)
+        // console.log('main-message message received:', message)
         // sendMessage({ type: 'log', log: `received message: ${JSON.stringify(event.data)}` })
-        if (event.data.type === 'resetState') {
-            dispatchAppState({ type: 'resetState' });
-        } else {
-            dispatchAppState({ type: 'updateState', data: { [event.data.type]: event.data } });
-        }
-        setLastMessage(event.data)
-    }, []);
-
-    useEffect(() => {
-        console.log('reloading')
-        window.ipcRenderer.on('main-message', handleMessage);
-        window.ipcRenderer.invoke('page-ready').then((config: any) => {
-            // console.log('config', config)
-            import(`mc://commands/${config.rootCommand.package}`).then((module: any) => {
-                console.log('reloaded command')
-                // console.log('module', module)
-                const rootComponent = module.components[config.rootCommand.name];
+        if (message.type === 'setRootCommand') {
+            if (appState.componentCache[message.data.name]) {
                 dispatchAppState({
                     type: 'loadConfig',
                     data: {
-                        rootComponent: rootComponent,
-                        rootProps: config.rootCommand.props
+                        rootComponent: appState.componentCache[message.data.name],
+                        rootProps: message.data.props
                     }
-                })
-            })
-        })
+                });
+            } else {
+                import(`mc://commands/${message.data.package}`).then((module: any) => {
+                    // console.log('setRootCommand', message.data)
+                    // console.log('module', module)
+                    const rootComponent = module.components[message.data.name];
+                    dispatchAppState({
+                        type: 'loadConfig',
+                        data: {
+                            rootComponent: rootComponent,
+                            rootProps: message.data.props
+                        }
+                    });
+                });
+            }
+        } else if (message.type === 'resetState') {
+            dispatchAppState({ type: 'resetState' });
+        } else {
+            dispatchAppState({ type: 'updateState', data: { [message.type]: message } });
+        }
+        setLastMessage(message)
+    }, []);
+
+    useEffect(() => {
+        // console.log('reloading')
+        window.ipcRenderer.on('main-message', handleMessage);
+        // window.ipcRenderer.invoke('page-ready').then((config: any) => {
+        //     // console.log('config', config)
+        //     import(`mc://commands/${config.rootCommand.package}`).then((module: any) => {
+        //         console.log('reloaded command')
+        //         // console.log('module', module)
+        //         const rootComponent = module.components[config.rootCommand.name];
+        //         dispatchAppState({
+        //             type: 'loadConfig',
+        //             data: {
+        //                 rootComponent: rootComponent,
+        //                 rootProps: config.rootCommand.props
+        //             }
+        //         })
+        //     })
+        // })
 
         return () => {
             window.ipcRenderer.off('main-message', handleMessage)
@@ -99,11 +137,13 @@ function App({ debug }: AppProps) {
         window.ipcRenderer.send('renderer-message', { command: 'hide' });
     }, []);
 
-    console.log('appState', appState)
+    const sendInvoke = useCallback((message: any) => {
+        return window.ipcRenderer.invoke('renderer-invoke', message);
+    }, []);
 
     return (
         <AppErrorBoundary sendMessage={sendMessage}>
-            <ModalCommanderContext.Provider value={{ appState, sendMessage, handleExit }}>
+            <ModalCommanderContext.Provider value={{ appState, sendMessage, handleExit, sendInvoke }}>
                 {
                     appState.rootComponent ? (
                         <div key={appState.cacheBusterKey} className="bg-gray-100 shadow-xl flex flex-row flex-nowrap justify-start space-x-2.5 items-stretch border border-gray-200 rounded-lg p-2.5 h-full">

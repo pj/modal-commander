@@ -27,7 +27,7 @@ export function SiteBlockerCommand(props: SiteBlockerCommandProps) {
 
     const handleVisibilityChange = () => {
         if (!document.hidden) {
-            sendInvoke({ command: '@modal-commander/builtins.SiteBlocker', type: 'getState' })
+            sendInvoke({ command: '@modal-commander/builtins#SiteBlockerCommand', type: 'getState' })
                 .then((state: SiteBlockerState) => {
                     setSiteBlockerState(state)
                 });
@@ -35,12 +35,12 @@ export function SiteBlockerCommand(props: SiteBlockerCommandProps) {
     }
 
     useEffect(() => {
-        sendInvoke({ command: '@modal-commander/builtins.SiteBlocker', type: 'getState' }).then((state: SiteBlockerState) => {
+        sendInvoke({ command: '@modal-commander/builtins#SiteBlockerCommand', type: 'getState' }).then((state: SiteBlockerState) => {
             setSiteBlockerState(state)
         });
         window.addEventListener("visibilitychange", handleVisibilityChange);
         const interval = setInterval(() => {
-            sendInvoke({ command: '@modal-commander/builtins.SiteBlocker', type: 'getState' }).then((state: SiteBlockerState) => {
+            sendInvoke({ command: '@modal-commander/builtins#SiteBlockerCommand', type: 'getState' }).then((state: SiteBlockerState) => {
                 setSiteBlockerState(state)
             });
         }, 1000);
@@ -57,14 +57,14 @@ export function SiteBlockerCommand(props: SiteBlockerCommandProps) {
                 return;
             }
             if (siteBlockerState) {
-                sendMessage({ type: 'siteBlocker' })
+                handleToggle()
             }
             return;
         }
     }
 
     const handleToggle = () => {
-        sendInvoke({ command: '@modal-commander/builtins.SiteBlocker', type: 'toggle' }).then((state: SiteBlockerState) => {
+        sendInvoke({ command: '@modal-commander/builtins#SiteBlockerCommand', type: 'toggle' }).then((state: SiteBlockerState) => {
             setSiteBlockerState(state)
         });
     }
@@ -132,7 +132,7 @@ export function SiteBlockerCommand(props: SiteBlockerCommandProps) {
                                         className="toggle toggle-primary toggle-lg"
                                         disabled={!siteBlockerState.validTime}
                                         checked={!siteBlockerState.blocked}
-                                        onChange={() => sendMessage({ type: 'siteBlocker' })}
+                                        onChange={() => handleToggle()}
                                     />
                                 </label>
                             </div>

@@ -27,7 +27,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['electron', 'electron-log', 'node:path', 'node:module', 'node:child_process', 'node:util', 'better-sqlite3'],
+      external: ['electron', 'electron-log', 'node:path', 'node:module', 'node:child_process', 'node:util', 'better-sqlite3', 'node:fs', 'node:os'],
       output: {
         dir: 'dist',
         entryFileNames: '[name].js',

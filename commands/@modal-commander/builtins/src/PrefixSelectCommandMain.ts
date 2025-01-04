@@ -1,6 +1,5 @@
 export class PrefixSelectCommandMain {
     onStart() {
-        console.log('onStart')
     }
 
     onStop() {

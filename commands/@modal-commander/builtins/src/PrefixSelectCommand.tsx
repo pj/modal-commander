@@ -37,6 +37,10 @@ export function PrefixSelectCommand(props: PrefixSelectCommandProps) {
 
     let selectedComponent = null
     let selectedProps = null
+
+    // console.log(selectedKey, components.size)
+    // console.log(components)
+    // console.log(props.prefixes)
     if (selectedKey && components.size > 0) {
         const prefix = props.prefixes[selectedKey]
         if (prefix && prefix.type === "command") {
@@ -58,18 +62,21 @@ export function PrefixSelectCommand(props: PrefixSelectCommandProps) {
         const importPromises: Promise<[string, React.ComponentType<any>]>[] = [];
         for (const [prefix, entry] of Object.entries(props.prefixes)) {
             if (entry.type === "command") {
-                // console.log('config', config)
                 importPromises.push((async () => {
                     const module = await import(`mc://commands/${entry.packageName}`)
+                    console.log(module, entry.commandName)
                     return [prefix, module.components[entry.commandName]]
                 })())
             }
         }
         Promise.all(importPromises).then((modules) => {
             setComponents(new Map(modules))
+        }).catch((error) => {
+            console.error(error)
         })
     }, [])
 
+    console.log("components ", components)
     const [setFocus, wrapper] = CommandWrapperWithFocus({
         ...props,
         keyHandler: (event) => setSelectedKey(event.key),
