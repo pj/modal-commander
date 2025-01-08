@@ -4,6 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import log from 'electron-log';
+import { Notification } from 'electron';
 const execAsync = promisify(exec);
 
 interface SiteBlockerConfig {
@@ -100,7 +101,7 @@ export class SiteBlockerMain {
   private loadStoredState(): void {
     const state = this.db.loadState(this.commandId);
     if (state) {
-      this.currentDay = state.currentDay;
+      this.currentDay = new Date(state.currentDay);
       this.timeSpent = state.timeSpent;
     }
   }
@@ -133,6 +134,13 @@ export class SiteBlockerMain {
         this.currentTimer = null;
       }
       return;
+    }
+
+    if (this.timeSpent == 55) {
+      new Notification({
+        title: 'Site Blocker',
+        body: '5 minutes left.'
+      }).show();
     }
 
     this.timeSpent = this.timeSpent + 1;

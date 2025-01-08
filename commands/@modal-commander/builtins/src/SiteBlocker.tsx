@@ -64,9 +64,11 @@ export function SiteBlockerCommand(props: SiteBlockerCommandProps) {
     }
 
     const handleToggle = () => {
-        sendInvoke({ command: '@modal-commander/builtins#SiteBlockerCommand', type: 'toggle' }).then((state: SiteBlockerState) => {
-            setSiteBlockerState(state)
-        });
+        sendInvoke({ command: '@modal-commander/builtins#SiteBlockerCommand', type: 'toggle' })
+            .then((state: SiteBlockerState) => {
+                setSiteBlockerState(state)
+                sendMessage({ command: 'hide'})
+            });
     }
 
     let secondsLeft = null
