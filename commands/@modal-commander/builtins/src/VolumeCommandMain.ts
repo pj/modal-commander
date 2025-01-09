@@ -18,13 +18,13 @@ export class VolumeCommandMain {
     const volumeRaw = await execAsync('osascript -e \'output volume of (get volume settings)\'');
     const volume = parseInt(volumeRaw.stdout.trim());
     if (message.type === 'mute') {
-      await execAsync('osascript -e \'set volume output muted to true\'');
+      await execAsync('osascript -e \'set volume output muted true\'');
     }
     if (message.type === 'up') {
-      await execAsync(`osascript -e 'set volume output volume to ${volume + 5}'`);
+      await execAsync(`osascript -e 'set volume output volume ${volume + 5}'`);
     }
     if (message.type === 'down') {
-      await execAsync(`osascript -e 'set volume output volume to ${volume - 5}'`);
+      await execAsync(`osascript -e 'set volume output volume ${volume - 5}'`);
     }
     return {
       volume: volume
@@ -39,6 +39,6 @@ export class VolumeCommandMain {
 
   async onInvoke(message: any) {
     log.info('VolumeCommandMain onInvoke', message);
-    await this.handle(message);
+    return await this.handle(message);
   }
 }

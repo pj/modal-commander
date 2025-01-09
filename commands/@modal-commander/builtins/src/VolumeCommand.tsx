@@ -49,7 +49,7 @@ export function VolumeCommand(props: VolumeCommandProps) {
             sendInvoke({ command: '@modal-commander/builtins#VolumeCommand', type: 'getState' }).then((state: VolumeState) => {
                 setVolumeState(state)
             });
-        }, 1000);
+        }, 10000);
         return () => {
             window.removeEventListener("visibilitychange", handleVisibilityChange);
             clearInterval(interval);
