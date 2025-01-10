@@ -1,13 +1,17 @@
 import log from "electron-log";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { createRequire } from "node:module";
 
 const execAsync = promisify(exec);
 
-export class VolumeCommandMain {
+const require = createRequire(import.meta.url);
 
+export class VolumeCommandMain {
+  private native: any;
   onStart() {
     log.info('VolumeCommandMain onStart');
+    this.native = require('../build/Release/VolumeCommand.node');
   }
 
   onStop() {
@@ -15,30 +19,36 @@ export class VolumeCommandMain {
   }
 
   private async handle(message: any) {
-    const volumeRaw = await execAsync('osascript -e \'output volume of (get volume settings)\'');
-    const volume = parseInt(volumeRaw.stdout.trim());
-    if (message.type === 'mute') {
-      await execAsync('osascript -e \'set volume output muted true\'');
-    }
-    if (message.type === 'up') {
-      await execAsync(`osascript -e 'set volume output volume ${volume + 5}'`);
-    }
-    if (message.type === 'down') {
-      await execAsync(`osascript -e 'set volume output volume ${volume - 5}'`);
-    }
-    return {
-      volume: volume
+    try {
+      const volume = this.native.getVolume();
+      if (message.type === 'set') {
+        this.native.setVolume(message.volume);
+      }
+      if (message.type === 'up') {
+        this.native.setVolume(volume + 5.0);
+      }
+      if (message.type === 'down') {
+        this.native.setVolume(volume - 5.0);
+      }
+      if (message.type === 'mute') {
+        log.silly('VolumeCommandMain muteVolume', message);
+        this.native.muteVolume(message.muted);
+      }
+      return {
+        volume: volume
+      }
+    } catch (error) {
+      log.error('VolumeCommand error:', error);
+      throw error; // Re-throw if you want to propagate the error
     }
   }
 
 
   async onMessage(message: any) {
-    log.info('VolumeCommandMain onMessage', message);
     await this.handle(message);
   }
 
   async onInvoke(message: any) {
-    log.info('VolumeCommandMain onInvoke', message);
     return await this.handle(message);
   }
 }

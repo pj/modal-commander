@@ -10,7 +10,7 @@
     "build": "vite build",
     "build:watch": "vite build --watch",
     "build:native": "node-gyp configure build && npm run copy-binary",
-    "copy-binary": "mkdir -p dist && cp build/Release/LockCommand.node dist/",
+    "copy-binary": "mkdir -p dist && cp build/Release/*.node dist/",
     "site-blocker-test": "tsx src/site_blocker_test_script.ts"
   },
   "dependencies": {

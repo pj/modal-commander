@@ -8,7 +8,6 @@ export function LockCommand(props: LockCommandProps) {
     const { sendMessage, handleExit } = useContext(window.ModalCommanderContext)
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        console.log('handleKeyDown', event)
         if (event.key === 'l') {
             sendMessage({ command: '@modal-commander/builtins#LockCommand' });
             handleExit();

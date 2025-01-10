@@ -95,7 +95,7 @@ function setupShortcuts(config: ModalCommanderConfig, messageListeners: Map<stri
         } else if (hotkey.type === 'operation') {
           const listener = messageListeners.get(hotkey.name);
           if (listener) {
-            log.silly('listener found:', listener)
+            // log.silly('listener found:', listener)
             await listener.onMessage(hotkey.message);
             return;
           }
@@ -197,7 +197,7 @@ async function createWindow() {
     const command = message.command;
     const listener = messageListeners.get(command);
     if (listener) {
-      log.silly('listener found:', listener)
+      // log.silly('listener found:', listener)
       listener.onMessage(message);
       return;
     }
@@ -210,7 +210,7 @@ async function createWindow() {
     const command = message.command;
     const listener = messageListeners.get(command);
     if (listener) {
-      log.silly('listener found:', listener);
+      // log.silly('listener found:', listener);
       return await listener.onInvoke(message);
     }
     
