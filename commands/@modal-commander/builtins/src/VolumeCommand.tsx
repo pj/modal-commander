@@ -17,31 +17,42 @@ export function VolumeCommand(props: VolumeCommandProps) {
     })
     console.log('volumeState', volumeState)
 
-    const volumeMessage = useCallback((type: string, volume?: number) => {
-        const message = {
-            command: '@modal-commander/builtins#VolumeCommand',
-            type: type,
-        } as any;
-        if (volume) {
-            message.volume = volume
-            setVolumeState({muted: volumeState.muted, volume: volume})
-        }
-        sendInvoke(message).then((state: VolumeState) => {
-            setVolumeState({...volumeState, volume: state.volume})
+    // const volumeMessage = useCallback((type: string, volume?: number) => {
+    //     const message = {
+    //         command: '@modal-commander/builtins#VolumeCommand',
+    //         type: type,
+    //     } as any;
+    //     if (volume) {
+    //         message.volume = volume
+    //         setVolumeState({muted: volumeState.muted, volume: volume})
+    //     }
+    //     sendInvoke(message).then((state: VolumeState) => {
+    //         setVolumeState({...volumeState, volume: state.volume})
+    //     });
+    // }, [sendInvoke])
+
+    const getVolumeState = useCallback(() => {
+        sendInvoke({ command: '@modal-commander/builtins#VolumeCommand', type: 'getState' }).then((state: VolumeState) => {
+            setVolumeState(state)
         });
     }, [sendInvoke])
 
+    const updateVolumeState = useCallback((state: VolumeState) => {
+        setVolumeState(state)
+        sendInvoke({ command: '@modal-commander/builtins#VolumeCommand', type: 'updateState', state: state })
+    }, [setVolumeState])
+
     const handleVisibilityChange = () => {
         if (!document.hidden) {
-            volumeMessage('getState')
+            getVolumeState()
         }
     }
 
     useEffect(() => {
-        volumeMessage('getState')
+        getVolumeState()
         window.addEventListener("visibilitychange", handleVisibilityChange);
         const interval = setInterval(() => {
-            volumeMessage('getState');
+            getVolumeState();
         }, 10000);
         return () => {
             window.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -53,20 +64,17 @@ export function VolumeCommand(props: VolumeCommandProps) {
         console.log('handleKeyDown', event.key)
         if (event.key === 'm') {
             if (volumeState) {
-                setVolumeState({...volumeState, muted: !volumeState.muted})
-                sendInvoke({ command: '@modal-commander/builtins#VolumeCommand', type: 'mute', muted: !volumeState.muted })
-                    .then(() => {
-                        sendMessage({ command: 'hide' })
-                    });
+                updateVolumeState({...volumeState, muted: !volumeState.muted})
+                sendMessage({ command: 'hide' })
             }
             return;
         }
         if (event.key === 'u') {
-            volumeMessage('up')
+            updateVolumeState({...volumeState, volume: volumeState.volume + 5})
             return;
         }
         if (event.key === 'd') {
-            volumeMessage('down')
+            updateVolumeState({...volumeState, volume: volumeState.volume - 5})
             return;
         }
     }
@@ -89,11 +97,7 @@ export function VolumeCommand(props: VolumeCommandProps) {
                                     className="toggle toggle-primary toggle-lg"
                                     checked={volumeState.muted}
                                     onChange={() => {
-                                        setVolumeState({...volumeState, muted: !volumeState.muted})
-                                        sendInvoke({ command: '@modal-commander/builtins#VolumeCommand', type: 'mute', muted: !volumeState.muted })
-                                            .then((state: VolumeState) => {
-                                                setVolumeState({...volumeState, ...state})
-                                            });
+                                        updateVolumeState({...volumeState, muted: !volumeState.muted})
                                     }}
                                 />
                             </label>
@@ -105,7 +109,7 @@ export function VolumeCommand(props: VolumeCommandProps) {
                                 className="btn btn-sm "
                                 data-testid={"volume-down-" + props.index}
                                 disabled={volumeState.muted}
-                                onClick={() => volumeMessage('down')}
+                                onClick={() => updateVolumeState({...volumeState, volume: volumeState.volume - 5})}
                             >
                                 -</button>
                             <input
@@ -115,13 +119,13 @@ export function VolumeCommand(props: VolumeCommandProps) {
                                 value={volumeState.volume}
                                 disabled={volumeState.muted}
                                 type="range"
-                                onChange={(event) => volumeMessage('set', parseInt(event.target.value))}
+                                onChange={(event) => updateVolumeState({...volumeState, volume: parseInt(event.target.value)})}
                             />
                             <button
                                 className="btn btn-sm"
                                 data-testid={"volume-up-" + props.index}
                                 disabled={volumeState.muted}
-                                onClick={() => volumeMessage('up')}
+                                onClick={() => updateVolumeState({...volumeState, volume: volumeState.volume + 5})}
                             >
                                 +</button>
                             <Key key="U" text="U" />

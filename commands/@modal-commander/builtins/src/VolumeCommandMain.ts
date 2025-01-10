@@ -21,21 +21,17 @@ export class VolumeCommandMain {
   private async handle(message: any) {
     try {
       const volume = this.native.getVolume();
-      if (message.type === 'set') {
-        this.native.setVolume(message.volume);
-      }
-      if (message.type === 'up') {
-        this.native.setVolume(volume + 5.0);
-      }
-      if (message.type === 'down') {
-        this.native.setVolume(volume - 5.0);
-      }
-      if (message.type === 'mute') {
-        log.silly('VolumeCommandMain muteVolume', message);
-        this.native.muteVolume(message.muted);
+      const muted = this.native.getMuted();
+
+      if (message.type === 'updateState') {
+        log.silly('VolumeCommandMain updateState', message);
+        this.native.setVolume(message.state.volume);
+        log.silly('setting muted', message.state.muted);
+        this.native.muteVolume(message.state.muted);
       }
       return {
-        volume: volume
+        volume: volume,
+        muted: muted
       }
     } catch (error) {
       log.error('VolumeCommand error:', error);

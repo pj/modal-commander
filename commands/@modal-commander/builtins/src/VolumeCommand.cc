@@ -182,6 +182,61 @@ Napi::Value getVolume(const Napi::CallbackInfo& info) {
   return Napi::Number::New(env, volume * 100);
 }
 
+Napi::Value getMuted(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+
+  // Get default output device
+  AudioObjectPropertyAddress defaultOutputDevice = {
+    kAudioHardwarePropertyDefaultOutputDevice,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMaster
+  };
+
+  AudioDeviceID outputDevice;
+  UInt32 deviceSize = sizeof(AudioDeviceID);
+  OSStatus status = AudioObjectGetPropertyData(
+    kAudioObjectSystemObject,
+    &defaultOutputDevice,
+    0,
+    nullptr,
+    &deviceSize,
+    &outputDevice
+  );
+
+  if (status != noErr) {
+    std::string errorMsg = "Failed to get default output device. Status: " + std::to_string(status);
+    Napi::Error::New(env, errorMsg).ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  // Get mute state
+  AudioObjectPropertyAddress muteAddress = {
+    kAudioDevicePropertyMute,
+    kAudioObjectPropertyScopeOutput,
+    kAudioObjectPropertyElementMaster
+  };
+
+  UInt32 muted = 0;
+  UInt32 dataSize = sizeof(UInt32);
+
+  status = AudioObjectGetPropertyData(
+    outputDevice,
+    &muteAddress,
+    0,
+    nullptr,
+    &dataSize,
+    &muted
+  );
+
+  if (status != noErr) {
+    std::string errorMsg = "Failed to get mute state. Status: " + std::to_string(status);
+    Napi::Error::New(env, errorMsg).ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  return Napi::Boolean::New(env, muted != 0);
+}
+
 // Napi::Value SetVolumeWithDevice(const Napi::CallbackInfo& info) {
 //   Napi::Env env = info.Env();
   
@@ -234,6 +289,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "muteVolume"), Napi::Function::New(env, muteVolume));
   exports.Set(Napi::String::New(env, "setVolume"), Napi::Function::New(env, setVolume));
   exports.Set(Napi::String::New(env, "getVolume"), Napi::Function::New(env, getVolume));
+  exports.Set(Napi::String::New(env, "getMuted"), Napi::Function::New(env, getMuted));
 //   exports.Set(Napi::String::New(env, "setVolumeWithDevice"), Napi::Function::New(env, SetVolumeWithDevice));
 //   exports.Set(Napi::String::New(env, "setConfig"), Napi::Function::New(env, SetConfig));
   return exports;

@@ -88,7 +88,7 @@ function setupShortcuts(config: ModalCommanderConfig, messageListeners: Map<stri
             win.hide();
           } else {
             lastHotkey = hotkey;
-            log.silly('sending setRootCommand message:', hotkey)
+            // log.silly('sending setRootCommand message:', hotkey)
             win.webContents.send('main-message', { type: 'setRootCommand', data: hotkey });
             win.show();
           }
@@ -193,7 +193,7 @@ async function createWindow() {
   }));
 
   ipcMain.on('renderer-message', (event, message) => {
-    log.silly('message received:', message)
+    // log.silly('message received:', message)
     const command = message.command;
     const listener = messageListeners.get(command);
     if (listener) {
@@ -206,7 +206,7 @@ async function createWindow() {
   })
 
   ipcMain.handle('renderer-invoke', async (event, message) => {
-    log.silly('message received:', message)
+    // log.silly('message received:', message)
     const command = message.command;
     const listener = messageListeners.get(command);
     if (listener) {
