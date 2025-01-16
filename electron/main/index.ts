@@ -117,6 +117,9 @@ function setupWindow() {
     icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
     hiddenInMissionControl: true,
     show: false,
+    frame: false,
+    width: 2000,
+    height: 500,
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production

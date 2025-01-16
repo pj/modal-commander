@@ -17,20 +17,6 @@ export function VolumeCommand(props: VolumeCommandProps) {
     })
     console.log('volumeState', volumeState)
 
-    // const volumeMessage = useCallback((type: string, volume?: number) => {
-    //     const message = {
-    //         command: '@modal-commander/builtins#VolumeCommand',
-    //         type: type,
-    //     } as any;
-    //     if (volume) {
-    //         message.volume = volume
-    //         setVolumeState({muted: volumeState.muted, volume: volume})
-    //     }
-    //     sendInvoke(message).then((state: VolumeState) => {
-    //         setVolumeState({...volumeState, volume: state.volume})
-    //     });
-    // }, [sendInvoke])
-
     const getVolumeState = useCallback(() => {
         sendInvoke({ command: '@modal-commander/builtins#VolumeCommand', type: 'getState' }).then((state: VolumeState) => {
             setVolumeState(state)
