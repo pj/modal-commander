@@ -1,5 +1,6 @@
 import log from 'electron-log';
 import { createRequire } from 'node:module';
+import { getInstance, WindowManager } from './WindowManager';
 const require = createRequire(import.meta.url);
 
 interface Monitor {
@@ -33,13 +34,15 @@ interface Window {
 export class LayoutSelectCommandMain {
     private native: any;
     private config: any;
+    private windowManager: WindowManager | null = null;
 
     constructor(db: any, config: any) {
         this.config = config;
     }
 
     onStart() {
-        this.native = require('../build/Release/WindowFunctions.node');
+        // this.native = require('../build/Release/WindowFunctions.node');
+        this.windowManager = getInstance();
     }
 
     // getMonitors(): Monitor[] {
@@ -56,9 +59,14 @@ export class LayoutSelectCommandMain {
 
     async handle(message: any) {
         log.silly('LayoutSelectCommandMain handle', message);
+
+        if (message.type === 'setLayout') {
+            this.windowManager?.setLayout(message.layout);
+        }
+
+        const state = this.windowManager?.getState();
         return {
-          monitors: this.native.getMonitors(),
-          windows: this.native.getWindows(),
+          ...state,
           layouts: this.config.layouts
         }
     }

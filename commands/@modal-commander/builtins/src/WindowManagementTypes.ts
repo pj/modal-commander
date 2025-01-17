@@ -1,64 +1,81 @@
-export type RootLayout = {
-    screens: {[screenName: string]: Layout}[]
-    name: string
-    quickKey: string
+export type LayoutType = "stack" | "empty" | "pinned" | "rows" | "columns" | "float_zoomed"
+
+export const SCREEN_PRIMARY = "$PRIMARY";
+export const PERCENTAGE_INCREMENT = 10;
+
+export interface BaseLayout {
+    type: LayoutType;
+    percentage?: number;
 }
 
-export type ColumnsLayout = {
-    type: "columns"
-    columns: Layout[]
-    percentage: number
+export interface StackLayout extends BaseLayout {
+    type: "stack";
 }
 
-export type RowsLayout = {
-    type: "rows"
-    rows: Layout[]
-    percentage: number
+export interface EmptyLayout extends BaseLayout {
+    type: "empty";
 }
 
-export type StackLayout = {
-    type: "stack"
-    percentage: number
+export interface PinnedLayout extends BaseLayout {
+    type: "pinned";
+    application: string;
+    title?: string;
 }
 
-export type PinnedLayout = {
-    type: "pinned"
-    percentage: number
-    application?: string
-    title?: string
+export interface RowsLayout extends BaseLayout {
+    type: "rows";
+    rows: Layout[];
 }
 
-export type EmptyLayout = {
-    type: "empty"
-    percentage: number
+export interface ColumnsLayout extends BaseLayout {
+    type: "columns";
+    columns: Layout[];
 }
 
-export type Layout = ColumnsLayout | RowsLayout | StackLayout | PinnedLayout | EmptyLayout
-
-export type LayoutConstant = Layout extends any ? Layout["type"] : never;
-
-// export type Window = {
-//     id: string
-//     title: string
-//     focused: boolean
-// }
-
-// export type VirtualDesktop = {
-//     id: string
-//     windows: Window[]
-//     focusedWindow: Window | null
-// }
-
-export type WindowManagementState = {
-    layouts: RootLayout[]
-    currentLayout: RootLayout
-    monitors: any
-    windows: any
+export interface FloatZoomedLayout extends BaseLayout {
+    type: "float_zoomed";
+    application: string;
+    title?: string;
 }
 
-export type Geometry = {
-    w: number
-    h: number
-    x: number
-    y: number
+export type Layout = StackLayout | EmptyLayout | PinnedLayout | RowsLayout | ColumnsLayout | FloatZoomedLayout;
+
+export type WindowManagerState = {
+    monitors: Map<string, Monitor>;
+    windows: Map<number, Window>;
+    currentLayout: WindowManagerLayout;
+}
+
+export interface ScreenConfig {
+    [screenName: string]: Layout;
+}
+
+export interface WindowManagerLayout {
+    screens?: ScreenConfig[];
+    floats?: FloatZoomedLayout[];
+    zoomed?: FloatZoomedLayout[];
+}
+
+export interface Window {
+    id: number;
+    title: string;
+    application: string;
+    bounds: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+}
+
+export interface Monitor {
+    id: number;
+    name: string;
+    bounds: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+    main: boolean;
 }
