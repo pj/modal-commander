@@ -1,25 +1,22 @@
-import log from 'electron-log';
-import { createRequire } from 'module';
+import { createRequire } from 'node:module';
 import {
   Layout,
-  LayoutType,
   Window,
-  // WindowCache,
-  // ApplicationCache,
-  // ScreenCache,
   WindowManagerLayout,
   SCREEN_PRIMARY,
   PinnedLayout,
   ScreenConfig,
   Monitor,
   FloatZoomedLayout,
-  WindowManagerState
+  WindowManagerState,
+  Bounds
 } from './WindowManagementTypes';
+import log from 'electron-log/main';
 
 const require = createRequire(import.meta.url);
 
-const DEFAULT_LAYOUT: WindowManagerLayout = {
-  screens: [{
+export const DEFAULT_LAYOUT: WindowManagerLayout = {
+  screenSets: [{
     [SCREEN_PRIMARY]: {
       type: "columns",
       columns: [{
@@ -35,6 +32,8 @@ export class WindowManager {
   private windowCache: Map<number, Window> = new Map();
   private applicationCache: Map<string, Map<string, Window>> = new Map();
   private screenCache: Map<string, Monitor> = new Map();
+  // Map of window id to the monitor it is located at - monitors not specifically located are sent to the primary screen
+  private locatedAtWindows: Map<number, string> = new Map();
   private currentLayout: WindowManagerLayout = DEFAULT_LAYOUT;
   private updateTimer: NodeJS.Timeout | null = null;
 
@@ -117,15 +116,16 @@ export class WindowManager {
     return windows;
   }
 
-  private async reconcileScreenLayout(screen: Monitor, layout: Layout, nonStackedWindows: Set<number>) {
+  private async reconcileScreenLayout(screen: Monitor, layout: Layout, nonStackedWindows: Set<number>): Promise<Bounds | null> {
     const bounds = screen.bounds;
+    let stackLocation: Bounds | null = null;
 
     switch (layout.type) {
       case "columns":
         let xOffset = bounds.x;
         for (const column of layout.columns) {
           const width = bounds.width * (column.percentage || 0) / 100;
-          await this.reconcileScreenLayout(
+          stackLocation = await this.reconcileScreenLayout(
             { ...screen, bounds: { ...bounds, x: xOffset, width } },
             column,
             nonStackedWindows
@@ -138,7 +138,7 @@ export class WindowManager {
         let yOffset = bounds.y;
         for (const row of layout.rows) {
           const height = bounds.height * (row.percentage || 0) / 100;
-          await this.reconcileScreenLayout(
+          stackLocation = await this.reconcileScreenLayout(
             { ...screen, bounds: { ...bounds, y: yOffset, height } },
             row,
             nonStackedWindows
@@ -164,70 +164,106 @@ export class WindowManager {
         //     await this.native.setWindowBounds(window.id, bounds);
         //   }
         // }
+        stackLocation = bounds;
         break;
     }
+
+    return stackLocation;
   }
 
   private async reconcileScreenSet(screenSet: ScreenConfig) {
-    const nonStackedWindows = new Set<number>();
-
-    // Handle floating windows
-    if (this.currentLayout?.floats) {
-      for (const float of this.currentLayout.floats) {
-        const windows = this.findWindowsForLayout(float);
-        for (const window of windows) {
-          nonStackedWindows.add(window.id);
-        }
-      }
-    }
-
-    // Handle zoomed windows
-    if (this.currentLayout?.zoomed) {
-      for (const zoomed of this.currentLayout.zoomed) {
-        const windows = this.findWindowsForLayout(zoomed);
-        for (const window of windows) {
-          nonStackedWindows.add(window.id);
-          // Set window to full screen bounds of its monitor
-          const monitor = this.screenCache.get(window.bounds.x.toString()); // Simplified monitor detection
-          if (monitor) {
-            await this.native.setWindowBounds(window.id, monitor.bounds);
-          }
-        }
-      }
-    }
-
     // Handle regular layout
     for (const [screenName, layout] of Object.entries(screenSet)) {
       const screen = screenName === SCREEN_PRIMARY
         ? Array.from(this.screenCache.values()).find(s => s.main)
         : this.screenCache.get(screenName);
 
-      if (screen) {
-        await this.reconcileScreenLayout(screen, layout, nonStackedWindows);
+      if (!screen) {
+        log.warn(`No screen found for ${screenName}`);
+        continue;
       }
-    }
 
-    // Set all windows to be stacked
-    for (const window of Object.values(this.windowCache)) {
-      if (!nonStackedWindows.has(window.id)) {
-        await this.native.setWindowBounds(window.id, { x: 0, y: 0, width: 0, height: 0 });
+      const nonStackedWindows = new Set<number>();
+
+      // Handle floating windows
+      if (this.currentLayout?.floats) {
+        for (const float of this.currentLayout.floats) {
+          const windows = this.findWindowsForLayout(float);
+          for (const window of windows) {
+            if (
+              this.locatedAtWindows.get(window.id) && this.locatedAtWindows.get(window.id) !== screen.name
+            ) {
+              continue;
+            }
+
+            nonStackedWindows.add(window.id);
+          }
+        }
+      }
+
+      // Handle zoomed windows
+      if (this.currentLayout?.zoomed) {
+        for (const zoomed of this.currentLayout.zoomed) {
+          const windows = this.findWindowsForLayout(zoomed);
+          for (const window of windows) {
+            // Check if the window is explicitly located at a screen
+            if (
+              this.locatedAtWindows.get(window.id) && this.locatedAtWindows.get(window.id) !== screen.name
+            ) {
+              continue;
+            }
+
+            nonStackedWindows.add(window.id);
+            // Set window to full screen bounds of its monitor
+            await this.native.setWindowBounds(window.id, screen.bounds);
+          }
+        }
+      }
+
+      const stackLocation = await this.reconcileScreenLayout(screen, layout, nonStackedWindows);
+      if (stackLocation) {
+        for (const window of Object.values(this.windowCache)) {
+          if (
+            !nonStackedWindows.has(window.id)
+            && (
+              (!this.locatedAtWindows.has(window.id) && screen.main)
+              || this.locatedAtWindows.get(window.id) === screen.name
+            )
+          ) {
+            await this.native.setWindowBounds(window.id, stackLocation);
+          }
+        }
+      } else {
+        log.warn(`No stack location found for screen ${screenName}`);
       }
     }
   }
 
   private async reconcileLayout() {
-    if (!this.currentLayout?.screens) return;
+    if (!this.currentLayout?.screenSets) return;
 
-    for (const screenSet of this.currentLayout.screens) {
-      await this.reconcileScreenSet(screenSet);
+    // Match monitors to the layout
+    for (const screenSet of this.currentLayout.screenSets) {
+      let allFound = true;
+      for (const screenName of Object.keys(screenSet)) {
+        const screen = this.screenCache.get(screenName);
+        if (!screen) {
+          allFound = false;
+          break;
+        }
+      }
+      if (allFound) {
+        await this.reconcileScreenSet(screenSet);
+        break;
+      }
     }
   }
 
   // Getting the state
   public getState(): WindowManagerState {
     return {
-      monitors: this.screenCache,
-      windows: this.windowCache,
+      monitors: Array.from(this.screenCache.values()),
+      windows: Array.from(this.windowCache.values()),
       currentLayout: this.currentLayout || DEFAULT_LAYOUT
     };
   }

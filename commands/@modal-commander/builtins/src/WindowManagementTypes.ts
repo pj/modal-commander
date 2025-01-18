@@ -1,81 +1,101 @@
-export type LayoutType = "stack" | "empty" | "pinned" | "rows" | "columns" | "float_zoomed"
+import { z } from 'zod';
+
+export const LayoutType = z.enum(["stack", "empty", "pinned", "rows", "columns", "float_zoomed"]);
+export type LayoutType = z.infer<typeof LayoutType>;
 
 export const SCREEN_PRIMARY = "$PRIMARY";
 export const PERCENTAGE_INCREMENT = 10;
 
-export interface BaseLayout {
-    type: LayoutType;
-    percentage?: number;
-}
+const BaseLayout = z.object({
+  type: LayoutType,
+  percentage: z.number().optional(),
+});
 
-export interface StackLayout extends BaseLayout {
-    type: "stack";
-}
+export const StackLayout = BaseLayout.extend({
+  type: z.literal("stack"),
+});
 
-export interface EmptyLayout extends BaseLayout {
-    type: "empty";
-}
+export const EmptyLayout = BaseLayout.extend({
+  type: z.literal("empty"),
+});
 
-export interface PinnedLayout extends BaseLayout {
-    type: "pinned";
-    application: string;
-    title?: string;
-}
+export const PinnedLayout = BaseLayout.extend({
+  type: z.literal("pinned"),
+  application: z.string(),
+  title: z.string().optional(),
+});
 
-export interface RowsLayout extends BaseLayout {
-    type: "rows";
-    rows: Layout[];
-}
+export const RowsLayout = BaseLayout.extend({
+  type: z.literal("rows"),
+  rows: z.lazy((): any => Layout.array() as any),
+});
 
-export interface ColumnsLayout extends BaseLayout {
-    type: "columns";
-    columns: Layout[];
-}
+export const ColumnsLayout = BaseLayout.extend({
+  type: z.literal("columns"),
+  columns: z.lazy((): any => Layout.array() as any),
+});
 
-export interface FloatZoomedLayout extends BaseLayout {
-    type: "float_zoomed";
-    application: string;
-    title?: string;
-}
+export const FloatZoomedLayout = BaseLayout.extend({
+  type: z.literal("float_zoomed"),
+  application: z.string(),
+  title: z.string().optional(),
+});
 
-export type Layout = StackLayout | EmptyLayout | PinnedLayout | RowsLayout | ColumnsLayout | FloatZoomedLayout;
+export const Layout = z.discriminatedUnion("type", [
+  StackLayout,
+  EmptyLayout,
+  PinnedLayout,
+  RowsLayout,
+  ColumnsLayout,
+  FloatZoomedLayout,
+]);
 
-export type WindowManagerState = {
-    monitors: Map<string, Monitor>;
-    windows: Map<number, Window>;
-    currentLayout: WindowManagerLayout;
-}
+export const Bounds = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+});
 
-export interface ScreenConfig {
-    [screenName: string]: Layout;
-}
+export const Window = z.object({
+  id: z.number(),
+  title: z.string(),
+  application: z.string(),
+  bounds: Bounds,
+});
 
-export interface WindowManagerLayout {
-    screens?: ScreenConfig[];
-    floats?: FloatZoomedLayout[];
-    zoomed?: FloatZoomedLayout[];
-}
+export const Monitor = z.object({
+  id: z.number(),
+  name: z.string(),
+  bounds: Bounds,
+  main: z.boolean(),
+});
 
-export interface Window {
-    id: number;
-    title: string;
-    application: string;
-    bounds: {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-    };
-}
+export const ScreenConfig = z.record(z.string(), Layout);
 
-export interface Monitor {
-    id: number;
-    name: string;
-    bounds: {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-    };
-    main: boolean;
-}
+export const WindowManagerLayout = z.object({
+  screenSets: z.array(ScreenConfig).optional(),
+  floats: z.array(FloatZoomedLayout).optional(),
+  zoomed: z.array(FloatZoomedLayout).optional(),
+});
+
+export const WindowManagerState = z.object({
+  monitors: z.array(Monitor),
+  windows: z.array(Window),
+  currentLayout: WindowManagerLayout,
+});
+
+// Type exports
+export type Bounds = z.infer<typeof Bounds>;
+export type Layout = z.infer<typeof Layout>;
+export type StackLayout = z.infer<typeof StackLayout>;
+export type EmptyLayout = z.infer<typeof EmptyLayout>;
+export type PinnedLayout = z.infer<typeof PinnedLayout>;
+export type RowsLayout = z.infer<typeof RowsLayout>;
+export type ColumnsLayout = z.infer<typeof ColumnsLayout>;
+export type FloatZoomedLayout = z.infer<typeof FloatZoomedLayout>;
+export type Window = z.infer<typeof Window>;
+export type Monitor = z.infer<typeof Monitor>;
+export type ScreenConfig = z.infer<typeof ScreenConfig>;
+export type WindowManagerLayout = z.infer<typeof WindowManagerLayout>;
+export type WindowManagerState = z.infer<typeof WindowManagerState>;
