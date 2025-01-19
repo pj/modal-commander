@@ -11,11 +11,13 @@ import {
   WindowManagerState,
   Bounds
 } from './WindowManagementTypes';
-import log from 'electron-log/main';
+import log from 'electron-log';
 
 const require = createRequire(import.meta.url);
 
 export const DEFAULT_LAYOUT: WindowManagerLayout = {
+  name: "Default",
+  quickKey: "d",
   screenSets: [{
     [SCREEN_PRIMARY]: {
       type: "columns",
@@ -39,13 +41,11 @@ export class WindowManager {
 
   constructor() {
     this.native = require('../build/Release/WindowFunctions.node');
-    this.start();
   }
 
   // Initialization and periodic update handling
   public async start() {
-    await this.updateScreenCache();
-    await this.updateWindowCache();
+    await this.updateCaches();
     this.startWindowWatcher();
   }
 
@@ -59,21 +59,18 @@ export class WindowManager {
   private startWindowWatcher() {
     // Poll for window changes every second
     this.updateTimer = setInterval(async () => {
-      await this.updateScreenCache();
-      await this.updateWindowCache();
+      await this.updateCaches();
       await this.reconcileLayout();
     }, 1000);
   }
 
-  private async updateScreenCache() {
+  private async updateCaches() {
     const monitors = await this.native.getMonitors();
     this.screenCache = new Map();
     for (const monitor of monitors) {
       this.screenCache.set(monitor.name, monitor);
     }
-  }
 
-  private async updateWindowCache() {
     const windows = await this.native.getWindows();
     this.windowCache = new Map();
     this.applicationCache = new Map();
@@ -89,9 +86,9 @@ export class WindowManager {
   }
 
   // Updating/Modifying the layout
-  public setLayout(layout: WindowManagerLayout) {
+  public async setLayout(layout: WindowManagerLayout) {
     this.currentLayout = layout;
-    this.reconcileLayout();
+    await this.reconcileLayout();
   }
 
 
@@ -125,11 +122,14 @@ export class WindowManager {
         let xOffset = bounds.x;
         for (const column of layout.columns) {
           const width = bounds.width * (column.percentage || 0) / 100;
-          stackLocation = await this.reconcileScreenLayout(
+          const foundStackLocation = await this.reconcileScreenLayout(
             { ...screen, bounds: { ...bounds, x: xOffset, width } },
             column,
             nonStackedWindows
           );
+          if (foundStackLocation) {
+            stackLocation = foundStackLocation;
+          }
           xOffset += width;
         }
         break;
@@ -138,11 +138,14 @@ export class WindowManager {
         let yOffset = bounds.y;
         for (const row of layout.rows) {
           const height = bounds.height * (row.percentage || 0) / 100;
-          stackLocation = await this.reconcileScreenLayout(
+          const foundStackLocation = await this.reconcileScreenLayout(
             { ...screen, bounds: { ...bounds, y: yOffset, height } },
             row,
             nonStackedWindows
           );
+          if (foundStackLocation) {
+            stackLocation = foundStackLocation;
+          }
           yOffset += height;
         }
         break;
@@ -165,6 +168,8 @@ export class WindowManager {
         //   }
         // }
         stackLocation = bounds;
+        break;
+      case "empty":
         break;
     }
 
@@ -222,7 +227,7 @@ export class WindowManager {
 
       const stackLocation = await this.reconcileScreenLayout(screen, layout, nonStackedWindows);
       if (stackLocation) {
-        for (const window of Object.values(this.windowCache)) {
+        for (const window of this.windowCache.values()) {
           if (
             !nonStackedWindows.has(window.id)
             && (
@@ -246,7 +251,10 @@ export class WindowManager {
     for (const screenSet of this.currentLayout.screenSets) {
       let allFound = true;
       for (const screenName of Object.keys(screenSet)) {
-        const screen = this.screenCache.get(screenName);
+        const screen = screenName === SCREEN_PRIMARY
+          ? Array.from(this.screenCache.values()).find(s => s.main)
+          : this.screenCache.get(screenName);
+
         if (!screen) {
           allFound = false;
           break;

@@ -74,7 +74,9 @@ export const Monitor = z.object({
 export const ScreenConfig = z.record(z.string(), Layout);
 
 export const WindowManagerLayout = z.object({
-  screenSets: z.array(ScreenConfig).optional(),
+  name: z.string(),
+  quickKey: z.string(),
+  screenSets: z.array(ScreenConfig),
   floats: z.array(FloatZoomedLayout).optional(),
   zoomed: z.array(FloatZoomedLayout).optional(),
 });
@@ -83,6 +85,10 @@ export const WindowManagerState = z.object({
   monitors: z.array(Monitor),
   windows: z.array(Window),
   currentLayout: WindowManagerLayout,
+});
+
+export const FrontendState = WindowManagerState.extend({
+  layouts: z.array(WindowManagerLayout),
 });
 
 // Type exports
@@ -99,3 +105,4 @@ export type Monitor = z.infer<typeof Monitor>;
 export type ScreenConfig = z.infer<typeof ScreenConfig>;
 export type WindowManagerLayout = z.infer<typeof WindowManagerLayout>;
 export type WindowManagerState = z.infer<typeof WindowManagerState>;
+export type FrontendState = z.infer<typeof FrontendState>;

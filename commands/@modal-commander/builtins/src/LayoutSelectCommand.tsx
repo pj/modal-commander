@@ -1,7 +1,7 @@
 import { useCallback,useEffect,  useContext, useState } from "react"
 import { CommandWrapper, DefaultCommandProps, defaultCommandProps, useFocus } from "./CommandWrapper"
 import { Key } from "./Key"
-import { Geometry, Layout as LayoutType, RootLayout as RootLayoutType, WindowManagementState } from "./WindowManagementTypes"
+import { FrontendState, Monitor, SCREEN_PRIMARY, WindowManagerLayout } from "./WindowManagementTypes"
 
 export type LayoutCommandProps = DefaultCommandProps
 
@@ -10,76 +10,77 @@ const columnStyle = { fontSize: "0.5rem" }
 const layoutWidth = 160;
 const layoutHeight = 100;
 
-type LayoutProps = {
-    layout: LayoutType
-    frame: Geometry
-}
+// type LayoutProps = {
+//     layout: LayoutType
+//     frame: Geometry
+// }
 
-function Window({ frame, text }: { frame: Geometry, text: string }) {
-    return (
-        <div style={{ ...columnStyle, width: frame.w, height: frame.h }} className={columnCss}>
-            <div style={{ height: "4px" }} className="bg-gray-200 rounded-t-md flex flex-row items-center justify-start pl-1">
-                <div style={{ height: "2px", width: "2px" }} className="bg-red-500 rounded-full"></div>
-                <div style={{ height: "2px", width: "2px" }} className="bg-yellow-500 rounded-full"></div>
-                <div style={{ height: "2px", width: "2px" }} className="bg-green-500 rounded-full"></div>
-            </div>
-            <hr className="border-gray-300" />
-            <div className="flex h-full items-center justify-center text-center">{text}</div>
-        </div>
-    );
-}
+// function Window({ frame, text }: { frame: Geometry, text: string }) {
+//     return (
+//         <div style={{ ...columnStyle, width: frame.w, height: frame.h }} className={columnCss}>
+//             <div style={{ height: "4px" }} className="bg-gray-200 rounded-t-md flex flex-row items-center justify-start pl-1">
+//                 <div style={{ height: "2px", width: "2px" }} className="bg-red-500 rounded-full"></div>
+//                 <div style={{ height: "2px", width: "2px" }} className="bg-yellow-500 rounded-full"></div>
+//                 <div style={{ height: "2px", width: "2px" }} className="bg-green-500 rounded-full"></div>
+//             </div>
+//             <hr className="border-gray-300" />
+//             <div className="flex h-full items-center justify-center text-center">{text}</div>
+//         </div>
+//     );
+// }
 
 
-function Layout({ layout, frame }: LayoutProps) {
-    if (layout.type === "columns") {
-        let columns = [];
-        for (const column of layout.columns) {
-            let columnWidth = (column.percentage / 100) * frame.w;
-            columns.push(<Layout layout={column} frame={{ w: columnWidth, h: frame.h, x: frame.x, y: frame.y }} />)
-        }
+// function Layout({ layout, frame }: LayoutProps) {
+//     if (layout.type === "columns") {
+//         let columns = [];
+//         for (const column of layout.columns) {
+//             let columnWidth = (column.percentage / 100) * frame.w;
+//             columns.push(<Layout layout={column} frame={{ w: columnWidth, h: frame.h, x: frame.x, y: frame.y }} />)
+//         }
 
-        return (
-            <div className="flex flex-row">
-                {columns}
-            </div>
-        );
-    } else if (layout.type === "rows") {
-        let rows = [];
-        for (const row of layout.rows) {
-            let rowHeight = (row.percentage / 100) * frame.h;
-            rows.push(<Layout layout={row} frame={{ w: frame.w, h: rowHeight, x: frame.x, y: frame.y }} />)
-        }
+//         return (
+//             <div className="flex flex-row">
+//                 {columns}
+//             </div>
+//         );
+//     } else if (layout.type === "rows") {
+//         let rows = [];
+//         for (const row of layout.rows) {
+//             let rowHeight = (row.percentage / 100) * frame.h;
+//             rows.push(<Layout layout={row} frame={{ w: frame.w, h: rowHeight, x: frame.x, y: frame.y }} />)
+//         }
 
-        return (
-            <div className="flex flex-col">
-                {rows}
-            </div>
-        );
-    }
-    else if (layout.type === "stack") {
-        return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text="Stack" />
-    }
-    else if (layout.type === "pinned") {
-        return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text={layout.application || ""} />
-    }
-    else if (layout.type === "empty") {
-        return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text="Empty" />
-    }
+//         return (
+//             <div className="flex flex-col">
+//                 {rows}
+//             </div>
+//         );
+//     }
+//     else if (layout.type === "stack") {
+//         return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text="Stack" />
+//     }
+//     else if (layout.type === "pinned") {
+//         return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text={layout.application || ""} />
+//     }
+//     else if (layout.type === "empty") {
+//         return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text="Empty" />
+//     }
 
-    return (<div>Unknown layout type {JSON.stringify(layout)}</div>);
-}
+//     return (<div>Unknown layout type {JSON.stringify(layout)}</div>);
+// }
 
 type RootLayoutProps = {
-    layout: RootLayoutType
-    frame: Geometry
-    currentScreens: { name: string, primary: boolean }[]
+    layout: WindowManagerLayout
+    monitors: Monitor[]
+    // frame: Geometry
+    // currentScreens: { name: string, primary: boolean }[]
 }
 
-function RootLayout({ layout, frame, currentScreens }: RootLayoutProps) {
-    for (const screenSet of layout.screens) {
+function RootLayout({ layout, monitors }: RootLayoutProps) {
+    for (const screenSet of layout.screenSets) {
         let foundAllScreens = true;
-        for (const currentScreen of currentScreens) {
-            if (currentScreen.primary && screenSet["primary"]) {
+        for (const currentScreen of monitors) {
+            if (currentScreen.main && screenSet[SCREEN_PRIMARY]) {
                 continue
             }
             if (screenSet[currentScreen.name]) {
@@ -89,8 +90,8 @@ function RootLayout({ layout, frame, currentScreens }: RootLayoutProps) {
             break;
         }
         if (foundAllScreens) {
-            let screenLayout = screenSet[currentScreens[0].name]
-            if (!screenLayout && currentScreens[0].primary) {
+            let screenLayout = screenSet[monitors[0].name]
+            if (!screenLayout && monitors[0].main) {
                 screenLayout = screenSet["primary"];
             }
             if (!screenLayout) {
@@ -103,7 +104,7 @@ function RootLayout({ layout, frame, currentScreens }: RootLayoutProps) {
                         <div className="text-xs">{layout.name}</div>
                     </div>
                     <div className="p-1 rounded-sm bg-black relative">
-                        <Layout layout={screenLayout} frame={frame} />
+                        {/* <Layout layout={screenLayout} frame={frame} /> */}
                     </div>
                 </div>
             )
@@ -122,17 +123,22 @@ function RootLayout({ layout, frame, currentScreens }: RootLayoutProps) {
 }
 
 export function LayoutSelectCommand(props: LayoutCommandProps) {
-    const { sendMessage, sendInvoke } = useContext(window.ModalCommanderContext)
-    const [windowManagementState, setWindowManagementState] = useState<WindowManagementState | undefined>(undefined)
+    const { sendInvoke } = useContext(window.ModalCommanderContext)
+    const [windowManagementState, setWindowManagementState] = useState<FrontendState | undefined>(undefined)
     console.log('windowManagementState', windowManagementState)
 
     const getWindowManagementState = useCallback(() => {
-        sendInvoke({ command: '@modal-commander/builtins#LayoutSelectCommand', type: 'getState' }).then((state: WindowManagementState) => {
-            setWindowManagementState(state)
-        });
+        sendInvoke({ 
+            command: '@modal-commander/builtins#LayoutSelectCommand', 
+            type: 'getState' 
+        }).then(
+            (state: FrontendState) => {
+                setWindowManagementState(state)
+            }
+        );
     }, [sendInvoke])
 
-    const updateWindowManagementState = useCallback((state: WindowManagementState) => {
+    const updateWindowManagementState = useCallback((state: FrontendState) => {
         setWindowManagementState(state)
         sendInvoke({ command: '@modal-commander/builtins#LayoutSelectCommand', type: 'updateState', state: state })
     }, [setWindowManagementState])
@@ -173,13 +179,14 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
                 windowManagementState ? (
                     <div className="flex flex-row divide-x *:px-2 first:*:pt-0 last:*:pb-0">
                         {
-                            // windowManagementState.layouts.map((layout: RootLayoutType) => (
-                            //     <RootLayout
-                            //         layout={layout}
-                            //         frame={{ w: layoutWidth, h: layoutHeight, x: 0, y: 0 }}
-                            //         currentScreens={windowManagementState.currentScreens}
-                            //     />
-                            // ))
+                            windowManagementState.layouts.map((layout: WindowManagerLayout) => (
+                                <RootLayout
+                                    layout={layout}
+                                    monitors={windowManagementState.monitors}
+                                    // frame={{ w: layoutWidth, h: layoutHeight, x: 0, y: 0 }}
+                                    // currentScreens={windowManagementState.monitors}
+                                />
+                            ))
                         }
                     </div>
                 ) : null
