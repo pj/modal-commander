@@ -175,7 +175,7 @@ async function createWindow() {
   db = new CommandDatabase(path.join(app.getPath('userData'), 'commands.db'))
 
   const messageListeners = await loadCommand(db, config, commandRoots);
-  setupProtocol(commandRoots);
+  setupProtocol(commandRoots, []);
   setupWindow();
   setupTray();
   setupShortcuts(config, messageListeners);

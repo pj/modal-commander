@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite'
-// import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig({
@@ -19,32 +18,21 @@ export default defineConfig({
   },
   build: {
     minify: false,
+    emptyOutDir: false,
     lib: {
-      entry: {
-        main: path.resolve(__dirname, 'src/main.ts'),
-        renderer: path.resolve(__dirname, 'src/renderer.tsx')
-      },
+      entry: path.resolve(__dirname, 'src/renderer.tsx'),
       formats: ['es'],
     },
     rollupOptions: {
       external: [
         'electron', 
-        'electron-log', 
-        'node:path', 
-        'node:module', 
-        'node:child_process', 
-        'node:util', 
-        'better-sqlite3', 
-        'node:fs', 
-        'node:os', 
-        'zod', 
-        'node:fs/promises'
+        'zod'
       ],
       output: {
         dir: 'dist',
-        entryFileNames: '[name].js',
-        format: 'es',
+        entryFileNames: 'renderer.js',
+        inlineDynamicImports: true,
       },
     },
   }
-}) 
+}); 

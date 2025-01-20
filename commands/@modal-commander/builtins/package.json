@@ -7,8 +7,13 @@
     "./renderer": "./dist/renderer.js"
   },
   "scripts": {
-    "build": "vite build",
-    "build:watch": "vite build --watch",
+    "clean": "rm -rf dist",
+    "build:main": "vite build --config vite.main.ts",
+    "build:renderer": "vite build --config vite.renderer.ts",
+    "build": "npm run clean && npm run build:main && npm run build:renderer",
+    "build:watch:main": "vite build --watch --config vite.main.ts",
+    "build:watch:renderer": "vite build --watch --config vite.renderer.ts",
+    "build:watch": "npm run clean && concurrently \"npm run build:watch:main\" \"npm run build:watch:renderer\"",
     "build:native": "node-gyp configure build && npm run copy-binary",
     "copy-binary": "mkdir -p dist && cp build/Release/*.node dist/",
     "site-blocker-test": "tsx src/site_blocker_test_script.ts"
@@ -16,12 +21,14 @@
   "dependencies": {
     "node-addon-api": "^8.3.0",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@vitejs/plugin-react": "^4.0.0",
+    "concurrently": "^9.1.2",
     "tsx": "^4.19.2",
     "vite": "^4.0.0"
   }
