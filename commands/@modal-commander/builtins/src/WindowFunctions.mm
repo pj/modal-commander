@@ -125,13 +125,19 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
     );
     
     // Find the window by ID
+    Napi::Object console = env.Global().Get("console").As<Napi::Object>();
+    console.Get("log").As<Napi::Function>().Call(console, {Napi::String::New(env, "--------------------------------")});
+    console.Get("log").As<Napi::Function>().Call(console, {Napi::String::New(env, "windowId"), Napi::Number::New(env, windowId)});
     NSArray* windows = [NSApp windows];
     for (NSWindow* window in windows) {
+        console.Get("log").As<Napi::Function>().Call(console, {Napi::String::New(env, "windowNumber"), Napi::Number::New(env, [window windowNumber])});
         if ([window windowNumber] == windowId) {
+            console.Get("log").As<Napi::Function>().Call(console, {Napi::String::New(env, "Setting window bounds")});
             [window setFrame:newBounds display:YES];
             break;
         }
     }
+    
     
     return env.Null();
 }

@@ -2,6 +2,7 @@ import { useCallback,useEffect,  useContext, useState } from "react"
 import { CommandWrapper, DefaultCommandProps, defaultCommandProps, useFocus } from "./CommandWrapper"
 import { Key } from "./Key"
 import { FrontendState, Monitor, SCREEN_PRIMARY, WindowManagerLayout } from "./WindowManagementTypes"
+import log from "electron-log"
 
 export type LayoutCommandProps = DefaultCommandProps
 
@@ -92,7 +93,7 @@ function RootLayout({ layout, monitors }: RootLayoutProps) {
         if (foundAllScreens) {
             let screenLayout = screenSet[monitors[0].name]
             if (!screenLayout && monitors[0].main) {
-                screenLayout = screenSet["primary"];
+                screenLayout = screenSet[SCREEN_PRIMARY];
             }
             if (!screenLayout) {
                 return <div key={layout.name}>Unable to find matching screens for layout {layout.name}</div>
@@ -123,9 +124,8 @@ function RootLayout({ layout, monitors }: RootLayoutProps) {
 }
 
 export function LayoutSelectCommand(props: LayoutCommandProps) {
-    const { sendInvoke } = useContext(window.ModalCommanderContext)
+    const { sendInvoke, sendMessage } = useContext(window.ModalCommanderContext)
     const [windowManagementState, setWindowManagementState] = useState<FrontendState | undefined>(undefined)
-    console.log('windowManagementState', windowManagementState)
 
     const getWindowManagementState = useCallback(() => {
         sendInvoke({ 
@@ -164,7 +164,14 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
         for (const layout of windowManagementState?.layouts || []) {
             if (layout.quickKey === event.key) {
-                sendInvoke({ type: "hide" });
+                sendInvoke({ 
+                    command: '@modal-commander/builtins#LayoutSelectCommand', 
+                    type: 'setLayout', 
+                    layout: layout 
+                }).then(
+                    () => sendMessage({ command: "hide" })
+                );
+
                 return;
             }
         }

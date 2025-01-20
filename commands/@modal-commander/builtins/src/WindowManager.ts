@@ -45,6 +45,7 @@ export class WindowManager {
 
   // Initialization and periodic update handling
   public async start() {
+    if (this.updateTimer) return;
     await this.updateCaches();
     this.startWindowWatcher();
   }
@@ -227,6 +228,7 @@ export class WindowManager {
 
       const stackLocation = await this.reconcileScreenLayout(screen, layout, nonStackedWindows);
       if (stackLocation) {
+        log.silly('stackLocation', stackLocation)
         for (const window of this.windowCache.values()) {
           if (
             !nonStackedWindows.has(window.id)
@@ -235,6 +237,7 @@ export class WindowManager {
               || this.locatedAtWindows.get(window.id) === screen.name
             )
           ) {
+            // log.silly('setting window bounds', window.id, stackLocation)
             await this.native.setWindowBounds(window.id, stackLocation);
           }
         }
@@ -261,6 +264,7 @@ export class WindowManager {
         }
       }
       if (allFound) {
+        log.silly('reconcileScreenSet', screenSet)
         await this.reconcileScreenSet(screenSet);
         break;
       }
