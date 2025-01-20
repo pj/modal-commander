@@ -3,6 +3,9 @@
 #include <ApplicationServices/ApplicationServices.h>
 #import <AppKit/NSScreen.h>
 #import <AppKit/NSWindow.h>
+#import <ApplicationServices/ApplicationServices.h>  // For AXValue functions
+#import <CoreFoundation/CoreFoundation.h>
+#import <Carbon/Carbon.h>  // For AXValueCreate
 
 // Helper to convert CGRect to JavaScript object
 Napi::Object CGRectToObject(Napi::Env env, CGRect rect) {
@@ -114,7 +117,7 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
         return env.Null();
     }
     
-    int windowId = info[0].As<Napi::Number>().Int32Value();
+    int targetWindowId = info[0].As<Napi::Number>().Int32Value();
     Napi::Object bounds = info[1].As<Napi::Object>();
     
     CGRect newBounds = CGRectMake(
@@ -123,22 +126,74 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
         bounds.Get("width").As<Napi::Number>().DoubleValue(),
         bounds.Get("height").As<Napi::Number>().DoubleValue()
     );
+
+    // Get all windows
+    CFArrayRef windowList = CGWindowListCopyWindowInfo(
+        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
+        kCGNullWindowID);
     
-    // Find the window by ID
-    Napi::Object console = env.Global().Get("console").As<Napi::Object>();
-    console.Get("log").As<Napi::Function>().Call(console, {Napi::String::New(env, "--------------------------------")});
-    console.Get("log").As<Napi::Function>().Call(console, {Napi::String::New(env, "windowId"), Napi::Number::New(env, windowId)});
-    NSArray* windows = [NSApp windows];
-    for (NSWindow* window in windows) {
-        console.Get("log").As<Napi::Function>().Call(console, {Napi::String::New(env, "windowNumber"), Napi::Number::New(env, [window windowNumber])});
-        if ([window windowNumber] == windowId) {
-            console.Get("log").As<Napi::Function>().Call(console, {Napi::String::New(env, "Setting window bounds")});
-            [window setFrame:newBounds display:YES];
-            break;
+    if (!windowList) {
+        return env.Null();
+    }
+
+    CFIndex count = CFArrayGetCount(windowList);
+    for (CFIndex i = 0; i < count; i++) {
+        CFDictionaryRef window = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
+        
+        // Get window ID
+        CFNumberRef windowId;
+        if (CFDictionaryGetValueIfPresent(window, kCGWindowNumber, (const void**)&windowId)) {
+            int wid;
+            CFNumberGetValue(windowId, kCFNumberIntType, &wid);
+            
+            if (wid == targetWindowId) {
+                // Found our window, set its bounds
+                AXUIElementRef app = NULL;
+                CFStringRef ownerName;
+                if (CFDictionaryGetValueIfPresent(window, kCGWindowOwnerName, (const void**)&ownerName)) {
+                    // Get the process ID for the window
+                    pid_t pid;
+                    CFDictionaryRef ownerPID;
+                    if (CFDictionaryGetValueIfPresent(window, kCGWindowOwnerPID, (const void**)&ownerPID)) {
+                        CFNumberGetValue((CFNumberRef)ownerPID, kCFNumberIntType, &pid);
+                        
+                        // Create an accessibility element for the application
+                        app = AXUIElementCreateApplication(pid);
+                        if (app) {
+                            // Get all windows for the application
+                            CFArrayRef appWindows;
+                            if (AXUIElementCopyAttributeValue(app, 
+                                                            kAXWindowsAttribute, 
+                                                            (CFTypeRef*)&appWindows) == kAXErrorSuccess) {
+                                // Find our specific window
+                                CFIndex windowCount = CFArrayGetCount(appWindows);
+                                for (CFIndex j = 0; j < windowCount; j++) {
+                                    AXUIElementRef windowRef = (AXUIElementRef)CFArrayGetValueAtIndex(appWindows, j);
+                                    
+                                    // Set the position
+                                    CGPoint position = CGPointMake(newBounds.origin.x, newBounds.origin.y);
+                                    CFTypeRef positionValue = AXValueCreate((AXValueType)kAXValueCGPointType, static_cast<const void*>(&position));
+                                    AXUIElementSetAttributeValue(windowRef, kAXPositionAttribute, positionValue);
+                                    if (positionValue) CFRelease(positionValue);
+                                    
+                                    // Set the size
+                                    CGSize size = CGSizeMake(newBounds.size.width, newBounds.size.height);
+                                    CFTypeRef sizeValue = AXValueCreate((AXValueType)kAXValueCGSizeType, static_cast<const void*>(&size));
+                                    AXUIElementSetAttributeValue(windowRef, kAXSizeAttribute, sizeValue);
+                                    if (sizeValue) CFRelease(sizeValue);
+                                }
+                                CFRelease(appWindows);
+                            }
+                            CFRelease(app);
+                        }
+                    }
+                }
+                break;
+            }
         }
     }
     
-    
+    CFRelease(windowList);
     return env.Null();
 }
 

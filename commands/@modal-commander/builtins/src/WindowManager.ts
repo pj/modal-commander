@@ -38,6 +38,7 @@ export class WindowManager {
   private locatedAtWindows: Map<number, string> = new Map();
   private currentLayout: WindowManagerLayout = DEFAULT_LAYOUT;
   private updateTimer: NodeJS.Timeout | null = null;
+  private reconciling: boolean = false;
 
   constructor() {
     this.native = require('../build/Release/WindowFunctions.node');
@@ -100,6 +101,15 @@ export class WindowManager {
     return true;
   }
 
+  private async setWindowBounds(window: Window, bounds: Bounds) {
+    const cached = this.windowCache.get(window.id);
+    if (cached?.bounds.x !== bounds.x || cached?.bounds.y !== bounds.y || cached?.bounds.width !== bounds.width || cached?.bounds.height !== bounds.height) {
+      setTimeout(() => {
+        this.native.setWindowBounds(window.id, bounds);
+      }, 10);
+    }
+  }
+
   private findWindowsForLayout(layout: FloatZoomedLayout | PinnedLayout): Window[] {
     const windows: Window[] = [];
     const app = this.applicationCache.get(layout.application);
@@ -156,7 +166,7 @@ export class WindowManager {
         for (const window of windows) {
           if (!nonStackedWindows.has(window.id)) {
             nonStackedWindows.add(window.id);
-            await this.native.setWindowBounds(window.id, bounds);
+            await this.setWindowBounds(window, bounds);
           }
         }
         break;
@@ -221,14 +231,13 @@ export class WindowManager {
 
             nonStackedWindows.add(window.id);
             // Set window to full screen bounds of its monitor
-            await this.native.setWindowBounds(window.id, screen.bounds);
+            await this.setWindowBounds(window, screen.bounds);
           }
         }
       }
 
       const stackLocation = await this.reconcileScreenLayout(screen, layout, nonStackedWindows);
       if (stackLocation) {
-        log.silly('stackLocation', stackLocation)
         for (const window of this.windowCache.values()) {
           if (
             !nonStackedWindows.has(window.id)
@@ -238,7 +247,7 @@ export class WindowManager {
             )
           ) {
             // log.silly('setting window bounds', window.id, stackLocation)
-            await this.native.setWindowBounds(window.id, stackLocation);
+            await this.setWindowBounds(window, stackLocation);
           }
         }
       } else {
@@ -248,26 +257,37 @@ export class WindowManager {
   }
 
   private async reconcileLayout() {
-    if (!this.currentLayout?.screenSets) return;
+    try {
+      if (this.reconciling) {
+        log.warn('Already reconciling');
+        return;
+      }
 
-    // Match monitors to the layout
-    for (const screenSet of this.currentLayout.screenSets) {
-      let allFound = true;
-      for (const screenName of Object.keys(screenSet)) {
-        const screen = screenName === SCREEN_PRIMARY
-          ? Array.from(this.screenCache.values()).find(s => s.main)
-          : this.screenCache.get(screenName);
+      this.reconciling = true;
 
-        if (!screen) {
-          allFound = false;
+      if (!this.currentLayout?.screenSets) return;
+
+      // Match monitors to the layout
+      for (const screenSet of this.currentLayout.screenSets) {
+        let allFound = true;
+        for (const screenName of Object.keys(screenSet)) {
+          const screen = screenName === SCREEN_PRIMARY
+            ? Array.from(this.screenCache.values()).find(s => s.main)
+            : this.screenCache.get(screenName);
+
+          if (!screen) {
+            allFound = false;
+            break;
+          }
+        }
+        if (allFound) {
+          await this.reconcileScreenSet(screenSet);
           break;
         }
       }
-      if (allFound) {
-        log.silly('reconcileScreenSet', screenSet)
-        await this.reconcileScreenSet(screenSet);
-        break;
-      }
+    } finally {
+      this.reconciling = false;
+
     }
   }
 
