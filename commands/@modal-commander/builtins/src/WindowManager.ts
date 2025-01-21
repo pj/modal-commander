@@ -39,6 +39,8 @@ export class WindowManager {
   private currentLayout: WindowManagerLayout = DEFAULT_LAYOUT;
   private updateTimer: NodeJS.Timeout | null = null;
   private reconciling: boolean = false;
+  private currentApplication: string | null = null;
+  private focusCheckInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.native = require('../build/Release/WindowFunctions.node');
@@ -49,12 +51,17 @@ export class WindowManager {
     if (this.updateTimer) return;
     await this.updateCaches();
     this.startWindowWatcher();
+    this.startFocusWatcher();
   }
 
   public stop() {
     if (this.updateTimer) {
       clearInterval(this.updateTimer);
       this.updateTimer = null;
+    }
+    if (this.focusCheckInterval) {
+      clearInterval(this.focusCheckInterval);
+      this.focusCheckInterval = null;
     }
   }
 
@@ -64,6 +71,18 @@ export class WindowManager {
       await this.updateCaches();
       await this.reconcileLayout();
     }, 1000);
+  }
+
+  private startFocusWatcher() {
+    // Check focus every 500ms
+    this.focusCheckInterval = setInterval(() => {
+      const focusedApp = this.native.getFocusedApplication();
+      if (focusedApp && focusedApp.name !== this.currentApplication) {
+        this.currentApplication = focusedApp.name;
+        log.debug('Focus changed to:', this.currentApplication);
+        // You can emit an event or handle the focus change however you need
+      }
+    }, 500);
   }
 
   private async updateCaches() {
@@ -298,6 +317,11 @@ export class WindowManager {
       windows: Array.from(this.windowCache.values()),
       currentLayout: this.currentLayout || DEFAULT_LAYOUT
     };
+  }
+
+  // Add getter for current application
+  public getCurrentApplication(): string | null {
+    return this.currentApplication;
   }
 }
 

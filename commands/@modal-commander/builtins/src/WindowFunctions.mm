@@ -6,6 +6,8 @@
 #import <ApplicationServices/ApplicationServices.h>  // For AXValue functions
 #import <CoreFoundation/CoreFoundation.h>
 #import <Carbon/Carbon.h>  // For AXValueCreate
+#import <AppKit/NSWorkspace.h>
+#import <AppKit/NSRunningApplication.h>
 
 // Helper to convert CGRect to JavaScript object
 Napi::Object CGRectToObject(Napi::Env env, CGRect rect) {
@@ -247,10 +249,42 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
     return env.Null();
 }
 
+Napi::Value getFocusedApplication(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    NSRunningApplication* frontApp = [[NSWorkspace sharedWorkspace] frontmostApplication];
+    if (!frontApp) {
+        return env.Null();
+    }
+    
+    Napi::Object appInfo = Napi::Object::New(env);
+    
+    // Get the application name
+    NSString* appName = [frontApp localizedName];
+    if (appName) {
+        const char* name = [appName UTF8String];
+        appInfo.Set("name", name);
+    }
+    
+    // Get the process ID
+    pid_t pid = [frontApp processIdentifier];
+    appInfo.Set("pid", (int)pid);
+    
+    // Get the bundle identifier
+    NSString* bundleId = [frontApp bundleIdentifier];
+    if (bundleId) {
+        const char* id = [bundleId UTF8String];
+        appInfo.Set("bundleId", id);
+    }
+    
+    return appInfo;
+}
+
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getMonitors", Napi::Function::New(env, getMonitors));
     exports.Set("getWindows", Napi::Function::New(env, getWindows));
     exports.Set("setWindowBounds", Napi::Function::New(env, setWindowBounds));
+    exports.Set("getFocusedApplication", Napi::Function::New(env, getFocusedApplication));
     return exports;
 }
 

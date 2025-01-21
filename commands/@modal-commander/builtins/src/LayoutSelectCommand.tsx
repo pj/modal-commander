@@ -1,6 +1,7 @@
 import { useCallback,useEffect,  useContext, useState } from "react"
 import { CommandWrapper, DefaultCommandProps, defaultCommandProps, useFocus } from "./CommandWrapper"
 import { Key } from "./Key"
+import { Bounds, Layout as LayoutType } from "./WindowManagementTypes"
 import { FrontendState, Monitor, SCREEN_PRIMARY, WindowManagerLayout } from "./WindowManagementTypes"
 import log from "electron-log"
 
@@ -11,64 +12,86 @@ const columnStyle = { fontSize: "0.5rem" }
 const layoutWidth = 160;
 const layoutHeight = 100;
 
-// type LayoutProps = {
-//     layout: LayoutType
-//     frame: Geometry
-// }
+type LayoutProps = {
+    layout: LayoutType
+    frame: Bounds
+    margin: string
+}
 
-// function Window({ frame, text }: { frame: Geometry, text: string }) {
-//     return (
-//         <div style={{ ...columnStyle, width: frame.w, height: frame.h }} className={columnCss}>
-//             <div style={{ height: "4px" }} className="bg-gray-200 rounded-t-md flex flex-row items-center justify-start pl-1">
-//                 <div style={{ height: "2px", width: "2px" }} className="bg-red-500 rounded-full"></div>
-//                 <div style={{ height: "2px", width: "2px" }} className="bg-yellow-500 rounded-full"></div>
-//                 <div style={{ height: "2px", width: "2px" }} className="bg-green-500 rounded-full"></div>
-//             </div>
-//             <hr className="border-gray-300" />
-//             <div className="flex h-full items-center justify-center text-center">{text}</div>
-//         </div>
-//     );
-// }
+const SIZE_RATIO = 0.1;
+
+function Window({ frame, text, margin }: { frame: Bounds, text: string, margin: string }) {
+    console.log("Window", frame, text)
+    return (
+        <div style={{ ...columnStyle, width: frame.width * SIZE_RATIO, height: frame.height * SIZE_RATIO }} className={columnCss + " " + margin}>
+            <div style={{ height: "4px" }} className="bg-gray-200 rounded-t-md flex flex-row items-center justify-start pl-1">
+                <div style={{ height: "2px", width: "2px" }} className="bg-red-500 rounded-full"></div>
+                <div style={{ height: "2px", width: "2px" }} className="bg-yellow-500 rounded-full"></div>
+                <div style={{ height: "2px", width: "2px" }} className="bg-green-500 rounded-full"></div>
+            </div>
+            <hr className="border-gray-300" />
+            <div className="flex h-full items-center justify-center text-center">{text}</div>
+        </div>
+    );
+}
 
 
-// function Layout({ layout, frame }: LayoutProps) {
-//     if (layout.type === "columns") {
-//         let columns = [];
-//         for (const column of layout.columns) {
-//             let columnWidth = (column.percentage / 100) * frame.w;
-//             columns.push(<Layout layout={column} frame={{ w: columnWidth, h: frame.h, x: frame.x, y: frame.y }} />)
-//         }
+function Layout({ layout, frame, margin }: LayoutProps) {
+    if (layout.type === "columns") {
+        let columns = [];
+        for (let i = 0; i < layout.columns.length; i++) {
+            let column = layout.columns[i];
+            let margin = "";
+            if (i > 0) {
+                margin = "ml-1";
+            }
+            let columnWidth = (column.percentage / 100) * frame.width;
+            columns.push(
+                <Layout 
+                    layout={column} 
+                    frame={{ width: columnWidth, height: frame.height, x: frame.x, y: frame.y }} 
+                    margin={margin}
+                />
+            )
+        }
 
-//         return (
-//             <div className="flex flex-row">
-//                 {columns}
-//             </div>
-//         );
-//     } else if (layout.type === "rows") {
-//         let rows = [];
-//         for (const row of layout.rows) {
-//             let rowHeight = (row.percentage / 100) * frame.h;
-//             rows.push(<Layout layout={row} frame={{ w: frame.w, h: rowHeight, x: frame.x, y: frame.y }} />)
-//         }
+        const className = "flex flex-row " + margin;
+        return (
+            <div className={className}>
+                {columns}
+            </div>
+        );
+    } else if (layout.type === "rows") {
+        let rows = [];
+        for (let i = 0; i < layout.rows.length; i++) {
+            let row = layout.rows[i];
+            let rowHeight = (row.percentage / 100) * frame.height;
+            let margin = "";
+            if (i > 0) {
+                margin = "mt-1";
+            }
+            rows.push(<Layout layout={row} frame={{ width: frame.width, height: rowHeight, x: frame.x, y: frame.y }} margin={margin} />)
+        }
 
-//         return (
-//             <div className="flex flex-col">
-//                 {rows}
-//             </div>
-//         );
-//     }
-//     else if (layout.type === "stack") {
-//         return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text="Stack" />
-//     }
-//     else if (layout.type === "pinned") {
-//         return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text={layout.application || ""} />
-//     }
-//     else if (layout.type === "empty") {
-//         return <Window frame={{ w: frame.w, h: frame.h, x: frame.x, y: frame.y }} text="Empty" />
-//     }
+        const className = "flex flex-col " + margin;
+        return (
+            <div className={className}>
+                {rows}
+            </div>
+        );
+    }
+    else if (layout.type === "stack") {
+        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text="Stack" margin={margin} />
+    }
+    else if (layout.type === "pinned") {
+        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text={layout.application || ""} margin={margin} />
+    }
+    else if (layout.type === "empty") {
+        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text="Empty" margin={margin} />
+    }
 
-//     return (<div>Unknown layout type {JSON.stringify(layout)}</div>);
-// }
+    return (<div>Unknown layout type {JSON.stringify(layout)}</div>);
+}
 
 type RootLayoutProps = {
     layout: WindowManagerLayout
@@ -105,7 +128,7 @@ function RootLayout({ layout, monitors }: RootLayoutProps) {
                         <div className="text-xs">{layout.name}</div>
                     </div>
                     <div className="p-1 rounded-sm bg-black relative">
-                        {/* <Layout layout={screenLayout} frame={frame} /> */}
+                        <Layout layout={screenLayout} frame={monitors[0].bounds} margin="" />
                     </div>
                 </div>
             )
