@@ -64,10 +64,61 @@ Napi::Value getWindows(const Napi::CallbackInfo& info) {
     }
     
     CFIndex count = CFArrayGetCount(windowList);
-    Napi::Array windowsArray = Napi::Array::New(env, static_cast<uint32_t>(count));
+    std::vector<Napi::Object> validWindows;
     
     for (CFIndex i = 0; i < count; i++) {
         CFDictionaryRef window = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
+        
+        // Check window layer
+        CFNumberRef layerRef;
+        int layer;
+        if (CFDictionaryGetValueIfPresent(window, kCGWindowLayer, (const void**)&layerRef)) {
+            CFNumberGetValue(layerRef, kCFNumberIntType, &layer);
+            // Skip if not on normal window layer (0)
+            if (layer != 0) {
+                continue;
+            }
+        }
+
+        // Check window type/subrole
+        CFStringRef windowType;
+        if (CFDictionaryGetValueIfPresent(window, kCGWindowAlpha, (const void**)&windowType)) {
+            float alpha;
+            CFNumberGetValue((CFNumberRef)windowType, kCFNumberFloatType, &alpha);
+            // Skip transparent or nearly transparent windows
+            if (alpha < 0.1) {
+                continue;
+            }
+        }
+
+        // Check if window has an owner
+        CFStringRef ownerName;
+        bool hasOwner = CFDictionaryGetValueIfPresent(window, kCGWindowOwnerName, (const void**)&ownerName);
+        
+        if (!hasOwner || !ownerName) {
+            continue;
+        }
+        
+        // Check if window is on screen and has reasonable dimensions
+        CFDictionaryRef bounds;
+        if (CFDictionaryGetValueIfPresent(window, kCGWindowBounds, (const void**)&bounds)) {
+            CGRect rect;
+            CGRectMakeWithDictionaryRepresentation(bounds, &rect);
+            // Skip if window is too small (likely a utility window or popup)
+            if (rect.size.width < 200 || rect.size.height < 200 || 
+                rect.size.width <= 0 || rect.size.height <= 0) {
+                continue;
+            }
+        }
+
+        // Check window status
+        CFBooleanRef onScreen;
+        if (CFDictionaryGetValueIfPresent(window, kCGWindowIsOnscreen, (const void**)&onScreen)) {
+            if (!CFBooleanGetValue(onScreen)) {
+                continue;
+            }
+        }
+
         Napi::Object windowObj = Napi::Object::New(env);
         
         // Get window ID
@@ -78,31 +129,30 @@ Napi::Value getWindows(const Napi::CallbackInfo& info) {
             windowObj.Set("id", wid);
         }
         
-        // Get window owner name
-        CFStringRef ownerName;
-        if (CFDictionaryGetValueIfPresent(window, kCGWindowOwnerName, (const void**)&ownerName)) {
-            char name[256];
-            CFStringGetCString(ownerName, name, 256, kCFStringEncodingUTF8);
-            windowObj.Set("application", name);
-        }
+        // Get window owner name (application name)
+        char winName[256] = "";
+        char appName[256] = "";
         
-        // Get window name
-        CFStringRef windowName;
-        if (CFDictionaryGetValueIfPresent(window, kCGWindowName, (const void**)&windowName)) {
-            char name[256];
-            CFStringGetCString(windowName, name, 256, kCFStringEncodingUTF8);
-            windowObj.Set("name", name);
+        if (CFStringGetCString(ownerName, appName, 256, kCFStringEncodingUTF8)) {
+            windowObj.Set("application", appName);
+            windowObj.Set("name", appName);  // Use app name as window name for now
+        } else {
+            continue;  // Skip if we can't get the app name
         }
         
         // Get window bounds
-        CFDictionaryRef bounds;
         if (CFDictionaryGetValueIfPresent(window, kCGWindowBounds, (const void**)&bounds)) {
             CGRect rect;
             CGRectMakeWithDictionaryRepresentation(bounds, &rect);
             windowObj.Set("bounds", CGRectToObject(env, rect));
         }
         
-        windowsArray[static_cast<uint32_t>(i)] = windowObj;
+        validWindows.push_back(windowObj);
+    }
+    
+    Napi::Array windowsArray = Napi::Array::New(env, validWindows.size());
+    for (size_t i = 0; i < validWindows.size(); i++) {
+        windowsArray[i] = validWindows[i];
     }
     
     CFRelease(windowList);
