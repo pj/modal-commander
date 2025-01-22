@@ -81,10 +81,22 @@ export const WindowManagerLayout = z.object({
   zoomed: z.array(FloatZoomedLayout).optional(),
 });
 
+export const Application = z.object({
+  name: z.string(),
+  pid: z.number(),
+  bundleId: z.string(),
+  window: z.object({
+    id: z.number(),
+    title: z.string(),
+    bounds: Bounds,
+  }).optional(),
+});
+
 export const WindowManagerState = z.object({
   monitors: z.array(Monitor),
   windows: z.array(Window),
   currentLayout: WindowManagerLayout,
+  currentApplication: Application.optional(),
 });
 
 export const FrontendState = WindowManagerState.extend({
@@ -106,3 +118,4 @@ export type ScreenConfig = z.infer<typeof ScreenConfig>;
 export type WindowManagerLayout = z.infer<typeof WindowManagerLayout>;
 export type WindowManagerState = z.infer<typeof WindowManagerState>;
 export type FrontendState = z.infer<typeof FrontendState>;
+export type Application = z.infer<typeof Application>;

@@ -1,13 +1,12 @@
 import log from 'electron-log';
 import { getInstance, WindowManager } from './WindowManager';
 
-export class LayoutSelectCommandMain {
+export class MoveWindowToCommandMain {
     private config: any;
     private windowManager: WindowManager | null = null;
 
     constructor(db: any, config: any) {
         this.config = config;
-        log.info('LayoutSelectCommandMain constructor', config)
     }
 
     onStart() {
@@ -16,14 +15,9 @@ export class LayoutSelectCommandMain {
     }
 
     async handle(message: any) {
-        if (message.type === 'setLayout') {
-            await this.windowManager?.setLayout(message.layout);
-        }
-
         const state = this.windowManager?.getState();
         return {
-          ...state,
-          layouts: this.config.layouts
+          ...state
         }
     }
 

@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useContext, useState } from "react"
+import { useCallback,useEffect,  useContext, useState } from "react"
 import { CommandWrapper, DefaultCommandProps } from "./CommandWrapper"
-import { FrontendState } from "./WindowManagementTypes"
-import { RootLayout } from "./RootLayout"
+import { FrontendState, WindowManagerLayout } from "./WindowManagementTypes"
+import log from "electron-log"
 
-export type LayoutCommandProps = DefaultCommandProps
+export type MoveWindowToCommandProps = DefaultCommandProps & {
+    source: number | "current" | "app"
+}
 
-export function LayoutSelectCommand(props: LayoutCommandProps) {
+export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
     const { sendInvoke, sendMessage } = useContext(window.ModalCommanderContext)
     const [windowManagementState, setWindowManagementState] = useState<FrontendState | undefined>(undefined)
 
     const getWindowManagementState = useCallback(() => {
         sendInvoke({ 
-            command: '@modal-commander/builtins#LayoutSelectCommand', 
+            command: '@modal-commander/builtins#MoveWindowToCommand', 
             type: 'getState' 
         }).then(
             (state: FrontendState) => {
@@ -19,11 +21,6 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
             }
         );
     }, [sendInvoke])
-
-    const updateWindowManagementState = useCallback((state: FrontendState) => {
-        setWindowManagementState(state)
-        sendInvoke({ command: '@modal-commander/builtins#LayoutSelectCommand', type: 'updateState', state: state })
-    }, [setWindowManagementState])
 
     const handleVisibilityChange = () => {
         if (!document.hidden) {
@@ -47,8 +44,8 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
         for (const layout of windowManagementState?.layouts || []) {
             if (layout.quickKey === event.key) {
                 sendInvoke({ 
-                    command: '@modal-commander/builtins#LayoutSelectCommand', 
-                    type: 'setLayout', 
+                    command: '@modal-commander/builtins#MoveWindowToCommand', 
+                    type: 'moveWindowTo', 
                     layout: layout 
                 }).then(
                     () => sendMessage({ command: "hide" })
@@ -62,17 +59,14 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
         <CommandWrapper
             {...props}
             keyHandler={handleKeyDown}
-            testIdPrefix="layout-select"
-            headerText="Layout Select"
+            testIdPrefix="move-window-to"
+            headerText="Move Window To"
             inner={
                 windowManagementState ? (
                     <div className="flex flex-row divide-x *:px-2 first:*:pt-0 last:*:pb-0">
                         {
-                            windowManagementState.layouts.map((layout) => (
-                                <RootLayout
-                                    layout={layout}
-                                    monitors={windowManagementState.monitors}
-                                />
+                            windowManagementState.layouts.map((layout: WindowManagerLayout) => (
+                                <div key={layout.quickKey}>{layout.quickKey}</div>
                             ))
                         }
                     </div>

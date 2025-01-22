@@ -9,7 +9,8 @@ import {
   Monitor,
   FloatZoomedLayout,
   WindowManagerState,
-  Bounds
+  Bounds,
+  Application
 } from './WindowManagementTypes';
 import log from 'electron-log';
 
@@ -39,7 +40,7 @@ export class WindowManager {
   private currentLayout: WindowManagerLayout = DEFAULT_LAYOUT;
   private updateTimer: NodeJS.Timeout | null = null;
   private reconciling: boolean = false;
-  private currentApplication: string | null = null;
+  private currentApplication: Application | null = null;
   private focusCheckInterval: NodeJS.Timeout | null = null;
 
   constructor() {
@@ -315,13 +316,9 @@ export class WindowManager {
     return {
       monitors: Array.from(this.screenCache.values()),
       windows: Array.from(this.windowCache.values()),
-      currentLayout: this.currentLayout || DEFAULT_LAYOUT
+      currentLayout: this.currentLayout || DEFAULT_LAYOUT,
+      currentApplication: this.currentApplication || undefined
     };
-  }
-
-  // Add getter for current application
-  public getCurrentApplication(): string | null {
-    return this.currentApplication;
   }
 }
 

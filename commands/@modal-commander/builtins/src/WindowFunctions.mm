@@ -276,6 +276,53 @@ Napi::Value getFocusedApplication(const Napi::CallbackInfo& info) {
         const char* id = [bundleId UTF8String];
         appInfo.Set("bundleId", id);
     }
+
+    // Get the focused window using Accessibility API
+    AXUIElementRef appElem = AXUIElementCreateApplication(pid);
+    if (appElem) {
+        AXUIElementRef windowRef;
+        if (AXUIElementCopyAttributeValue(appElem, 
+                                        kAXFocusedWindowAttribute, 
+                                        (CFTypeRef*)&windowRef) == kAXErrorSuccess) {
+            // Get window position
+            CGPoint position;
+            AXValueRef positionValue;
+            if (AXUIElementCopyAttributeValue(windowRef, 
+                                            kAXPositionAttribute, 
+                                            (CFTypeRef*)&positionValue) == kAXErrorSuccess) {
+                AXValueGetValue(positionValue, kAXValueCGPointType, &position);
+                CFRelease(positionValue);
+            }
+
+            // Get window size
+            CGSize size;
+            AXValueRef sizeValue;
+            if (AXUIElementCopyAttributeValue(windowRef, 
+                                            kAXSizeAttribute, 
+                                            (CFTypeRef*)&sizeValue) == kAXErrorSuccess) {
+                AXValueGetValue(sizeValue, kAXValueCGSizeType, &size);
+                CFRelease(sizeValue);
+            }
+
+            // Get window ID
+            CGWindowID windowId;
+            _AXUIElementGetWindow(windowRef, &windowId);
+
+            Napi::Object windowInfo = Napi::Object::New(env);
+            windowInfo.Set("id", (int)windowId);
+            
+            Napi::Object bounds = Napi::Object::New(env);
+            bounds.Set("x", position.x);
+            bounds.Set("y", position.y);
+            bounds.Set("width", size.width);
+            bounds.Set("height", size.height);
+            windowInfo.Set("bounds", bounds);
+
+            appInfo.Set("window", windowInfo);
+            CFRelease(windowRef);
+        }
+        CFRelease(appElem);
+    }
     
     return appInfo;
 }
