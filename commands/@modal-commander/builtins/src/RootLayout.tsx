@@ -1,13 +1,42 @@
 import { Key } from "./Key"
-import { Bounds, Layout as LayoutType, Monitor, SCREEN_PRIMARY, WindowManagerLayout } from "./WindowManagementTypes"
+import { Bounds, Layout as BaseLayout, Monitor, SCREEN_PRIMARY, WindowManagerLayout as BaseWindowManagerLayout, ScreenConfig as BaseScreenConfig } from "./WindowManagementTypes"
 
 const columnCss = "rounded-md text-xs bg-white flex flex-col border border-gray-300"
 const columnStyle = { fontSize: "0.5rem" }
 const SIZE_RATIO = 0.1;
 
-function Window({ frame, text, margin }: { frame: Bounds, text: string, margin: string }) {
+// Extended types that include selection state
+type SelectableLayout = BaseLayout & {
+    selected?: boolean;
+}
+
+type SelectableScreenConfig = {
+    [key: string]: SelectableLayout;
+}
+
+type SelectableWindowManagerLayout = Omit<BaseWindowManagerLayout, 'screenSets'> & {
+    screenSets: SelectableScreenConfig[];
+}
+
+type RootLayoutProps = {
+    layout: SelectableWindowManagerLayout;
+    monitors: Monitor[];
+}
+
+type WindowProps = {
+    frame: Bounds;
+    text: string;
+    margin: string;
+    selected?: boolean;
+}
+
+function Window({ frame, text, margin, selected }: WindowProps) {
+    const selectedClass = selected ? "ring-2 ring-blue-500" : "";
     return (
-        <div style={{ ...columnStyle, width: frame.width * SIZE_RATIO, height: frame.height * SIZE_RATIO }} className={columnCss + " " + margin}>
+        <div
+            style={{ ...columnStyle, width: frame.width * SIZE_RATIO, height: frame.height * SIZE_RATIO }}
+            className={`${columnCss} ${margin} ${selectedClass}`}
+        >
             <div style={{ height: "4px" }} className="bg-gray-200 rounded-t-md flex flex-row items-center justify-start pl-1">
                 <div style={{ height: "2px", width: "2px" }} className="bg-red-500 rounded-full"></div>
                 <div style={{ height: "2px", width: "2px" }} className="bg-yellow-500 rounded-full"></div>
@@ -19,7 +48,13 @@ function Window({ frame, text, margin }: { frame: Bounds, text: string, margin: 
     );
 }
 
-function Layout({ layout, frame, margin }: { layout: LayoutType, frame: Bounds, margin: string }) {
+type LayoutProps = {
+    layout: SelectableLayout;
+    frame: Bounds;
+    margin: string;
+}
+
+function Layout({ layout, frame, margin }: LayoutProps) {
     if (layout.type === "columns") {
         let columns = [];
         for (let i = 0; i < layout.columns.length; i++) {
@@ -30,9 +65,9 @@ function Layout({ layout, frame, margin }: { layout: LayoutType, frame: Bounds, 
             }
             let columnWidth = (column.percentage / 100) * frame.width;
             columns.push(
-                <Layout 
-                    layout={column} 
-                    frame={{ width: columnWidth, height: frame.height, x: frame.x, y: frame.y }} 
+                <Layout
+                    layout={column}
+                    frame={{ width: columnWidth, height: frame.height, x: frame.x, y: frame.y }}
                     margin={margin}
                 />
             )
@@ -53,7 +88,13 @@ function Layout({ layout, frame, margin }: { layout: LayoutType, frame: Bounds, 
             if (i > 0) {
                 margin = "mt-1";
             }
-            rows.push(<Layout layout={row} frame={{ width: frame.width, height: rowHeight, x: frame.x, y: frame.y }} margin={margin} />)
+            rows.push(
+                <Layout
+                    layout={row}
+                    frame={{ width: frame.width, height: rowHeight, x: frame.x, y: frame.y }}
+                    margin={margin}
+                />
+            )
         }
 
         const className = "flex flex-col " + margin;
@@ -64,19 +105,19 @@ function Layout({ layout, frame, margin }: { layout: LayoutType, frame: Bounds, 
         );
     }
     else if (layout.type === "stack") {
-        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text="Stack" margin={margin} />
+        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text="Stack" margin={margin} selected={layout.selected} />
     }
     else if (layout.type === "pinned") {
-        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text={layout.application || ""} margin={margin} />
+        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text={layout.application || ""} margin={margin} selected={layout.selected} />
     }
     else if (layout.type === "empty") {
-        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text="Empty" margin={margin} />
+        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text="Empty" margin={margin} selected={layout.selected} />
     }
 
     return (<div>Unknown layout type {JSON.stringify(layout)}</div>);
 }
 
-export function RootLayout({ layout, monitors }: { layout: WindowManagerLayout, monitors: Monitor[] }) {
+export function RootLayout({ layout, monitors }: RootLayoutProps) {
     for (const screenSet of layout.screenSets) {
         let foundAllScreens = true;
         for (const currentScreen of monitors) {
