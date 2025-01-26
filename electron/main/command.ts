@@ -28,10 +28,8 @@ export async function loadCommand(db: CommandDatabase, config: ModalCommanderCon
           try {
             // statSync(mainPath)
             const packageMain = await import(pathToFileURL(mainPath).toString())
-              console.log(config.commandConfig, pkg.name)
             for (const [commandName, commandClass] of Object.entries(packageMain.default)) {
               const commandConfig = config.commandConfig.find(c => c.name === commandName && c.package === `${namespace.name}/${pkg.name}`);
-              console.log(commandName, commandConfig)
 
               const listener = new (commandClass as any)(db, commandConfig?.config);  // Pass database instance here
               await listener.onStart(packagePath);

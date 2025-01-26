@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useContext, useState } from "react"
 import { CommandWrapper, DefaultCommandProps } from "./CommandWrapper"
 import { FrontendState } from "./WindowManagementTypes"
-import { RootLayout } from "./RootLayout"
+import { RenderLayout } from "./RootLayout"
 
 export type LayoutCommandProps = DefaultCommandProps
 
@@ -48,12 +48,10 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
             if (layout.quickKey === event.key) {
                 sendInvoke({ 
                     command: '@modal-commander/builtins#LayoutSelectCommand', 
-                    type: 'setLayout', 
-                    layout: layout 
-                }).then(
-                    () => sendMessage({ command: "hide" })
-                );
-
+                    type: 'setLayout',
+                    quickKey: layout.quickKey
+                });
+                sendMessage({ command: "hide" });
                 return;
             }
         }
@@ -69,7 +67,7 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
                     <div className="flex flex-row divide-x *:px-2 first:*:pt-0 last:*:pb-0">
                         {
                             windowManagementState.layouts.map((layout) => (
-                                <RootLayout
+                                <RenderLayout
                                     layout={layout}
                                     monitors={windowManagementState.monitors}
                                 />

@@ -1,25 +1,17 @@
 import { Key } from "./Key"
-import { Bounds, Layout as BaseLayout, Monitor, SCREEN_PRIMARY, WindowManagerLayout as BaseWindowManagerLayout, ScreenConfig as BaseScreenConfig } from "./WindowManagementTypes"
+import { Bounds, Layout, Monitor, SCREEN_PRIMARY, WindowManagerLayout, ScreenConfig as BaseScreenConfig, ScreenConfig } from "./WindowManagementTypes"
 
 const columnCss = "rounded-md text-xs bg-white flex flex-col border border-gray-300"
 const columnStyle = { fontSize: "0.5rem" }
-const SIZE_RATIO = 0.1;
 
-// Extended types that include selection state
-type SelectableLayout = BaseLayout & {
+// Extended types that include selection state and a react node to render inside the layout box.
+export type RenderOptions = {
     selected?: boolean;
-}
-
-type SelectableScreenConfig = {
-    [key: string]: SelectableLayout;
-}
-
-type SelectableWindowManagerLayout = Omit<BaseWindowManagerLayout, 'screenSets'> & {
-    screenSets: SelectableScreenConfig[];
+    render?: React.ReactNode;
 }
 
 type RootLayoutProps = {
-    layout: SelectableWindowManagerLayout;
+    layout: WindowManagerLayout;
     monitors: Monitor[];
 }
 
@@ -27,14 +19,18 @@ type WindowProps = {
     frame: Bounds;
     text: string;
     margin: string;
-    selected?: boolean;
+    layout: Layout<RenderOptions>;
 }
 
-function Window({ frame, text, margin, selected }: WindowProps) {
-    const selectedClass = selected ? "ring-2 ring-blue-500" : "";
+function Window({ frame, text, margin, layout }: WindowProps) {
+    const selectedClass = layout.attachment?.selected ? "ring-2 ring-blue-500" : "";
     return (
         <div
-            style={{ ...columnStyle, width: frame.width * SIZE_RATIO, height: frame.height * SIZE_RATIO }}
+            style={{
+                width: '100%',
+                height: '100%',
+                fontSize: "0.5rem"
+            }}
             className={`${columnCss} ${margin} ${selectedClass}`}
         >
             <div style={{ height: "4px" }} className="bg-gray-200 rounded-t-md flex flex-row items-center justify-start pl-1">
@@ -43,18 +39,20 @@ function Window({ frame, text, margin, selected }: WindowProps) {
                 <div style={{ height: "2px", width: "2px" }} className="bg-green-500 rounded-full"></div>
             </div>
             <hr className="border-gray-300" />
-            <div className="flex h-full items-center justify-center text-center">{text}</div>
+            <div className="flex h-full items-center justify-center text-center">
+                {layout.attachment?.render ? layout.attachment.render(layout) : text}
+            </div>
         </div>
     );
 }
 
 type LayoutProps = {
-    layout: SelectableLayout;
+    layout: Layout<RenderOptions>;
     frame: Bounds;
     margin: string;
 }
 
-function Layout({ layout, frame, margin }: LayoutProps) {
+export function LayoutNode({ layout, frame, margin }: LayoutProps) {
     if (layout.type === "columns") {
         let columns = [];
         for (let i = 0; i < layout.columns.length; i++) {
@@ -63,17 +61,18 @@ function Layout({ layout, frame, margin }: LayoutProps) {
             if (i > 0) {
                 margin = "ml-1";
             }
-            let columnWidth = (column.percentage / 100) * frame.width;
             columns.push(
-                <Layout
-                    layout={column}
-                    frame={{ width: columnWidth, height: frame.height, x: frame.x, y: frame.y }}
-                    margin={margin}
-                />
+                <div key={i} style={{ width: `${column.percentage}%`, height: '100%' }}>
+                    <LayoutNode
+                        layout={column}
+                        frame={frame}
+                        margin={margin}
+                    />
+                </div>
             )
         }
 
-        const className = "flex flex-row " + margin;
+        const className = "flex flex-row h-full " + margin;
         return (
             <div className={className}>
                 {columns}
@@ -83,21 +82,22 @@ function Layout({ layout, frame, margin }: LayoutProps) {
         let rows = [];
         for (let i = 0; i < layout.rows.length; i++) {
             let row = layout.rows[i];
-            let rowHeight = (row.percentage / 100) * frame.height;
             let margin = "";
             if (i > 0) {
                 margin = "mt-1";
             }
             rows.push(
-                <Layout
-                    layout={row}
-                    frame={{ width: frame.width, height: rowHeight, x: frame.x, y: frame.y }}
-                    margin={margin}
-                />
+                <div key={i} style={{ height: `${row.percentage}%`, width: '100%' }}>
+                    <LayoutNode
+                        layout={row}
+                        frame={frame}
+                        margin={margin}
+                    />
+                </div>
             )
         }
 
-        const className = "flex flex-col " + margin;
+        const className = "flex flex-col h-full " + margin;
         return (
             <div className={className}>
                 {rows}
@@ -105,51 +105,98 @@ function Layout({ layout, frame, margin }: LayoutProps) {
         );
     }
     else if (layout.type === "stack") {
-        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text="Stack" margin={margin} selected={layout.selected} />
+        return <Window frame={frame} text="Stack" margin={margin} layout={layout} />
     }
     else if (layout.type === "pinned") {
-        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text={layout.application || ""} margin={margin} selected={layout.selected} />
+        return <Window frame={frame} text={layout.application || ""} margin={margin} layout={layout} />
     }
     else if (layout.type === "empty") {
-        return <Window frame={{ width: frame.width, height: frame.height, x: frame.x, y: frame.y }} text="Empty" margin={margin} selected={layout.selected} />
+        return <Window frame={frame} text="Empty" margin={margin} layout={layout} />
     }
 
     return (<div>Unknown layout type {JSON.stringify(layout)}</div>);
 }
 
-export function RootLayout({ layout, monitors }: RootLayoutProps) {
-    for (const screenSet of layout.screenSets) {
-        let foundAllScreens = true;
-        for (const currentScreen of monitors) {
-            if (currentScreen.main && screenSet[SCREEN_PRIMARY]) {
-                continue
-            }
-            if (screenSet[currentScreen.name]) {
-                continue
-            }
-            foundAllScreens = false;
-            break;
+export type RenderScreenSetProps = {
+    layout: WindowManagerLayout;
+    monitors: Monitor[];
+    screenSet: ScreenConfig;
+}
+
+export function RenderScreenSet({ layout, monitors, screenSet }: RenderScreenSetProps) {
+    let foundAllScreens = true;
+    for (const currentScreen of monitors) {
+        if (currentScreen.main && screenSet[SCREEN_PRIMARY]) {
+            continue
         }
-        if (foundAllScreens) {
-            let screenLayout = screenSet[monitors[0].name]
-            if (!screenLayout && monitors[0].main) {
-                screenLayout = screenSet[SCREEN_PRIMARY];
-            }
-            if (!screenLayout) {
-                return <div key={layout.name}>Unable to find matching screens for layout {layout.name}</div>
-            }
-            return (
-                <div key={layout.name}>
-                    <div style={{ width: 160 }} className="flex flex-row items-center justify-center p-1 gap-1">
-                        <Key text={layout.quickKey}></Key>
-                        <div className="text-xs">{layout.name}</div>
-                    </div>
-                    <div className="p-1 rounded-sm bg-black relative">
-                        <Layout layout={screenLayout} frame={monitors[0].bounds} margin="" />
-                    </div>
+        if (screenSet[currentScreen.name]) {
+            continue
+        }
+        foundAllScreens = false;
+        break;
+    }
+    if (foundAllScreens) {
+        let screenLayout = screenSet[monitors[0].name]
+        if (!screenLayout && monitors[0].main) {
+            screenLayout = screenSet[SCREEN_PRIMARY];
+        }
+        if (!screenLayout) {
+            return <div key={layout.name}>Unable to find matching screens for layout {layout.name}</div>
+        }
+        return (
+            <div key={layout.name}>
+                <div style={{ width: 160 }} className="flex flex-row items-center justify-center p-1 gap-1">
+                    <Key text={layout.quickKey}></Key>
+                    <div className="text-xs">{layout.name}</div>
                 </div>
-            )
-        }
+                <div className="p-1 rounded-sm bg-black relative" style={{
+                    width: monitors[0].bounds.width * 0.1,
+                    height: monitors[0].bounds.height * 0.1
+                }}>
+                    <LayoutNode layout={screenLayout} frame={monitors[0].bounds} margin="" />
+                </div>
+            </div>
+        )
+    }
+}
+
+export function RenderLayout({ layout, monitors }: RootLayoutProps) {
+    for (const screenSet of layout.screenSets) {
+        return <RenderScreenSet layout={layout} monitors={monitors} screenSet={screenSet} />
+        // let foundAllScreens = true;
+        // for (const currentScreen of monitors) {
+        //     if (currentScreen.main && screenSet[SCREEN_PRIMARY]) {
+        //         continue
+        //     }
+        //     if (screenSet[currentScreen.name]) {
+        //         continue
+        //     }
+        //     foundAllScreens = false;
+        //     break;
+        // }
+        // if (foundAllScreens) {
+        //     let screenLayout = screenSet[monitors[0].name]
+        //     if (!screenLayout && monitors[0].main) {
+        //         screenLayout = screenSet[SCREEN_PRIMARY];
+        //     }
+        //     if (!screenLayout) {
+        //         return <div key={layout.name}>Unable to find matching screens for layout {layout.name}</div>
+        //     }
+        //     return (
+        //         <div key={layout.name}>
+        //             <div style={{ width: 160 }} className="flex flex-row items-center justify-center p-1 gap-1">
+        //                 <Key text={layout.quickKey}></Key>
+        //                 <div className="text-xs">{layout.name}</div>
+        //             </div>
+        //             <div className="p-1 rounded-sm bg-black relative" style={{ 
+        //                 width: monitors[0].bounds.width * 0.1,
+        //                 height: monitors[0].bounds.height * 0.1
+        //             }}>
+        //                 <LayoutNode layout={screenLayout} frame={monitors[0].bounds} margin="" />
+        //     </div>
+        //         </div>
+        //     )
+        // }
     }
 
     return (

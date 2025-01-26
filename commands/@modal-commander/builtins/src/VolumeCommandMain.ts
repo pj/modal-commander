@@ -10,12 +10,10 @@ const require = createRequire(import.meta.url);
 export class VolumeCommandMain {
   private native: any;
   onStart() {
-    log.info('VolumeCommandMain onStart');
     this.native = require('../build/Release/VolumeCommand.node');
   }
 
   onStop() {
-    log.info('VolumeCommandMain onStop');
   }
 
   private async handle(message: any) {
@@ -24,9 +22,7 @@ export class VolumeCommandMain {
       const muted = this.native.getMuted();
 
       if (message.type === 'updateState') {
-        log.silly('VolumeCommandMain updateState', message);
         this.native.setVolume(message.state.volume);
-        log.silly('setting muted', message.state.muted);
         this.native.muteVolume(message.state.muted);
       }
       return {

@@ -182,7 +182,7 @@ async function createWindow() {
 
   messageListeners.set('hide', new (class {
     onMessage(message: any) {
-      log.silly('hide message received:', message)
+      // log.silly('hide message received:', message)
       win?.hide();
       win?.webContents.send('main-message', { type: 'resetState' });
     }
@@ -190,7 +190,7 @@ async function createWindow() {
 
   messageListeners.set('quit', new (class {
     onMessage(message: any) {
-      log.silly('quit message received:', message)
+      // log.silly('quit message received:', message)
       app.quit();
     }
   }));

@@ -132,15 +132,11 @@ describe('WindowManager', () => {
 
   it('Layout on primary monitor', async () => {
     const newLayout = {
-      name: "Default",
-      quickKey: "d",
-      screenSets: [{
-        [SCREEN_PRIMARY]: {
-          type: "stack" as const,
-          percentage: 100,
-        }
-      }]
-    };
+      [SCREEN_PRIMARY]: {
+        type: "stack" as const,
+        percentage: 100,
+      }
+    }
 
     await windowManager.start();
     await windowManager.setLayout(newLayout);
@@ -155,25 +151,20 @@ describe('WindowManager', () => {
 
   it('Layout a pinned window', async () => {
     const newLayout = {
-      name: "Default",
-      quickKey: "d",
-      screenSets: [{
-        [SCREEN_PRIMARY]: {
-          type: "columns" as const,
-          columns: [
-            {
-              type: "stack" as const,
-              percentage: 50,
-            }, {
-              type: "pinned" as const,
-              application: "TestApp",
-              percentage: 50,
-            }
-          ]
-        }
-      }],
-    };
-
+      [SCREEN_PRIMARY]: {
+        type: "columns" as const,
+        columns: [
+          {
+            type: "stack" as const,
+            percentage: 50,
+          }, {
+            type: "pinned" as const,
+            application: "TestApp",
+            percentage: 50,
+          }
+        ]
+      }
+    }
     await windowManager.start();
     await windowManager.setLayout(newLayout);
 
@@ -188,30 +179,26 @@ describe('WindowManager', () => {
 
   it('Layout a rows', async () => {
     const newLayout = {
-      name: "Default",
-      quickKey: "d",
-      screenSets: [{
-        [SCREEN_PRIMARY]: {
-          type: "rows" as const,
-          rows: [
-            {
-              type: "stack" as const,
-              percentage: 33,
-            },
-            {
-              type: "pinned" as const,
-              application: "TestApp",
-              percentage: 33,
-            },
-            {
-              type: "pinned" as const,
-              application: "TestApp 2",
-              percentage: 33,
-            }
-          ]
-        }
-      }],
-    };
+      [SCREEN_PRIMARY]: {
+        type: "rows" as const,
+        rows: [
+          {
+            type: "stack" as const,
+            percentage: 33,
+          },
+          {
+            type: "pinned" as const,
+            application: "TestApp",
+            percentage: 33,
+          },
+          {
+            type: "pinned" as const,
+            application: "TestApp 2",
+            percentage: 33,
+          }
+        ]
+      }
+    }
 
     await windowManager.start();
     await windowManager.setLayout(newLayout);
@@ -229,10 +216,16 @@ describe('WindowManager', () => {
 
   it('Layout a float window', async () => {
     const newLayout = {
-      name: "Default",
-      quickKey: "d",
-      screenSets: [{
-        [SCREEN_PRIMARY]: {
+      [SCREEN_PRIMARY]: {
+        type: "float_zoomed" as const,
+        floats: [
+          {
+            type: "pinned" as const,
+            application: "TestApp",
+            title: "Test Window",
+          }
+        ],
+        layout: {
           type: "columns" as const,
           columns: [
             {
@@ -244,16 +237,8 @@ describe('WindowManager', () => {
             }
           ]
         }
-      }],
-      floats: [
-        {
-          type: "float_zoomed" as const,
-          application: "TestApp",
-          title: "Test Window",
-          percentage: 100,
-        }
-      ]
-    };
+      }
+    }
 
     await windowManager.start();
     await windowManager.setLayout(newLayout);
@@ -269,10 +254,16 @@ describe('WindowManager', () => {
 
   it('Layout a zoomed window', async () => {
     const newLayout = {
-      name: "Default",
-      quickKey: "d",
-      screenSets: [{
-        [SCREEN_PRIMARY]: {
+      [SCREEN_PRIMARY]: {
+        type: "float_zoomed" as const,
+        zoomed: [
+          {
+            type: "pinned" as const,
+            application: "TestApp",
+            title: "Test Window",
+          }
+        ],
+        layout: {
           type: "columns" as const,
           columns: [
             {
@@ -284,16 +275,8 @@ describe('WindowManager', () => {
             }
           ]
         }
-      }],
-      zoomed: [
-        {
-          type: "float_zoomed" as const,
-          application: "TestApp",
-          title: "Test Window",
-          percentage: 100,
-        }
-      ]
-    };
+      }
+    }
 
     await windowManager.start();
     await windowManager.setLayout(newLayout);

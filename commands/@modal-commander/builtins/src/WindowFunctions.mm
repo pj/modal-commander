@@ -290,7 +290,7 @@ Napi::Value getFocusedApplication(const Napi::CallbackInfo& info) {
             if (AXUIElementCopyAttributeValue(windowRef, 
                                             kAXPositionAttribute, 
                                             (CFTypeRef*)&positionValue) == kAXErrorSuccess) {
-                AXValueGetValue(positionValue, kAXValueCGPointType, &position);
+                AXValueGetValue(positionValue, (AXValueType)kAXValueCGPointType, &position);
                 CFRelease(positionValue);
             }
 
@@ -300,7 +300,7 @@ Napi::Value getFocusedApplication(const Napi::CallbackInfo& info) {
             if (AXUIElementCopyAttributeValue(windowRef, 
                                             kAXSizeAttribute, 
                                             (CFTypeRef*)&sizeValue) == kAXErrorSuccess) {
-                AXValueGetValue(sizeValue, kAXValueCGSizeType, &size);
+                AXValueGetValue(sizeValue, (AXValueType)kAXValueCGSizeType, &size);
                 CFRelease(sizeValue);
             }
 
@@ -322,6 +322,8 @@ Napi::Value getFocusedApplication(const Napi::CallbackInfo& info) {
             CFRelease(windowRef);
         }
         CFRelease(appElem);
+    } else {
+        printf("No focused application found");
     }
     
     return appInfo;

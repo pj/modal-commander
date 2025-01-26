@@ -6,50 +6,6 @@ export type LayoutType = z.infer<typeof LayoutType>;
 export const SCREEN_PRIMARY = "$PRIMARY";
 export const PERCENTAGE_INCREMENT = 10;
 
-const BaseLayout = z.object({
-  type: LayoutType,
-  percentage: z.number().optional(),
-});
-
-export const StackLayout = BaseLayout.extend({
-  type: z.literal("stack"),
-});
-
-export const EmptyLayout = BaseLayout.extend({
-  type: z.literal("empty"),
-});
-
-export const PinnedLayout = BaseLayout.extend({
-  type: z.literal("pinned"),
-  application: z.string(),
-  title: z.string().optional(),
-});
-
-export const RowsLayout = BaseLayout.extend({
-  type: z.literal("rows"),
-  rows: z.lazy((): any => Layout.array() as any),
-});
-
-export const ColumnsLayout = BaseLayout.extend({
-  type: z.literal("columns"),
-  columns: z.lazy((): any => Layout.array() as any),
-});
-
-export const FloatZoomedLayout = BaseLayout.extend({
-  type: z.literal("float_zoomed"),
-  application: z.string(),
-  title: z.string().optional(),
-});
-
-export const Layout = z.discriminatedUnion("type", [
-  StackLayout,
-  EmptyLayout,
-  PinnedLayout,
-  RowsLayout,
-  ColumnsLayout,
-  FloatZoomedLayout,
-]);
-
 export const Bounds = z.object({
   x: z.number(),
   y: z.number(),
@@ -64,6 +20,56 @@ export const Window = z.object({
   bounds: Bounds,
 });
 
+const BaseLayout = z.object({
+  type: LayoutType,
+  percentage: z.number().optional(),
+  attachment: z.any().optional(),
+});
+
+export const StackLayout = BaseLayout.extend({
+  type: z.literal("stack"),
+  computed: z.array(Window).optional(),
+});
+
+export const EmptyLayout = BaseLayout.extend({
+  type: z.literal("empty"),
+});
+
+export const PinnedLayout = BaseLayout.extend({
+  type: z.literal("pinned"),
+  application: z.string(),
+  title: z.string().optional(),
+  computed: z.array(Window).optional(),
+});
+
+export const RowsLayout = BaseLayout.extend({
+  type: z.literal("rows"),
+  rows: z.lazy((): any => Layout.array() as any),
+});
+
+export const ColumnsLayout = BaseLayout.extend({
+  type: z.literal("columns"),
+  columns: z.lazy((): any => Layout.array() as any),
+});
+
+export const FloatZoomedLayout = BaseLayout.extend({
+  type: z.literal("float_zoomed"),
+  layout: z.lazy((): any => Layout as any),
+  floats: z.array(PinnedLayout).optional(),
+  zoomed: z.array(PinnedLayout).optional(),
+  computed_floats: z.array(Window).optional(),
+  computed_zoomed: z.array(Window).optional(),
+});
+
+export const Layout = z.discriminatedUnion("type", [
+  StackLayout,
+  EmptyLayout,
+  PinnedLayout,
+  RowsLayout,
+  ColumnsLayout,
+  FloatZoomedLayout,
+]);
+
 export const Monitor = z.object({
   id: z.number(),
   name: z.string(),
@@ -77,25 +83,20 @@ export const WindowManagerLayout = z.object({
   name: z.string(),
   quickKey: z.string(),
   screenSets: z.array(ScreenConfig),
-  floats: z.array(FloatZoomedLayout).optional(),
-  zoomed: z.array(FloatZoomedLayout).optional(),
 });
 
 export const Application = z.object({
   name: z.string(),
   pid: z.number(),
   bundleId: z.string(),
-  window: z.object({
-    id: z.number(),
-    title: z.string(),
-    bounds: Bounds,
-  }).optional(),
+  windows: z.array(Window).optional(),
+  focusedWindow: Window.optional(),
 });
 
 export const WindowManagerState = z.object({
   monitors: z.array(Monitor),
   windows: z.array(Window),
-  currentLayout: WindowManagerLayout,
+  currentLayout: ScreenConfig.nullable(),
   currentApplication: Application.optional(),
 });
 
@@ -105,7 +106,9 @@ export const FrontendState = WindowManagerState.extend({
 
 // Type exports
 export type Bounds = z.infer<typeof Bounds>;
-export type Layout = z.infer<typeof Layout>;
+export type Layout<T = any> = z.infer<typeof Layout> & {
+  attachment?: T;
+};
 export type StackLayout = z.infer<typeof StackLayout>;
 export type EmptyLayout = z.infer<typeof EmptyLayout>;
 export type PinnedLayout = z.infer<typeof PinnedLayout>;

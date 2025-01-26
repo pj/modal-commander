@@ -44,7 +44,7 @@ async function handleImportCommands(pathname: string, commandRoots: string[]) {
       continue;
     }
 
-    log.info('Command found: ', filePath);
+    // log.info('Command found: ', filePath);
 
     const response = await net.fetch(pathToFileURL(filePath).toString())
     return new Response(response.body, {
@@ -87,7 +87,7 @@ async function handleImportDependencies(pathname: string, validDependencies: str
 export function setupProtocol(commandRoots: string[], validDependencies: string[]) {
   protocol.handle(
     'mc', async (req) => {
-      log.silly('mc protocol request', JSON.stringify(req, null, 2))
+      // log.silly('mc protocol request', JSON.stringify(req, null, 2))
       const { hostname, pathname } = new URL(req.url)
       if (hostname === 'commands') {
         return await handleImportCommands(pathname, commandRoots)
