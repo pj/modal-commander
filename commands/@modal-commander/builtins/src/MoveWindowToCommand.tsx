@@ -2,7 +2,8 @@ import { useCallback, useContext, useEffect, useState } from "react"
 import { CommandWrapper, DefaultCommandProps } from "./CommandWrapper"
 import { LayoutNode, RenderOptions } from "./RootLayout"
 import { Application, Bounds, FrontendState, Layout, Monitor, ScreenConfig } from "./WindowManagementTypes"
-
+import { Key } from "./Key"
+import log from "electron-log"
 export type MoveSource = number | "app" | "window"
 
 export type MoveWindowToCommandProps = DefaultCommandProps & {
@@ -12,7 +13,8 @@ export type MoveWindowToCommandProps = DefaultCommandProps & {
 function processLayout(
     layout: Layout<RenderOptions>,
     source: MoveSource,
-    currentApplication: Application
+    currentApplication: Application,
+    index: number
 ): Layout<RenderOptions> {
     const nextLayout: Layout<RenderOptions> = {
         ...layout
@@ -20,14 +22,14 @@ function processLayout(
     if (nextLayout.type === "columns") {
         let columns: Layout<RenderOptions>[] = [];
         for (const column of nextLayout.columns) {
-            columns.push(processLayout(column, source, currentApplication));
+            columns.push(processLayout(column, source, currentApplication, index++));
         }
         nextLayout.columns = columns;
         return nextLayout;
     } else if (nextLayout.type === "rows") {
         let rows: Layout<RenderOptions>[] = [];
         for (const row of nextLayout.rows) {
-            rows.push(processLayout(row, source, currentApplication));
+            rows.push(processLayout(row, source, currentApplication, index++));
         }
         nextLayout.rows = rows;
         return nextLayout;
@@ -61,8 +63,14 @@ function processLayout(
                 }
             }
             nextLayout.attachment = {
+                index: index,
                 selected: selected,
-                render: render
+                render: (
+                    <>
+                        <Key text={index.toString()}/> 
+                        {render}
+                    </>
+                )
             }
         }
         return nextLayout;
@@ -93,20 +101,66 @@ function processLayout(
                 render = nextLayout.title
             }
             nextLayout.attachment = {
+                index: index,
                 selected: selected,
-                render: render
+                render: (
+                    <>
+                        <Key text={index.toString()}/> 
+                        {render}
+                    </>
+                )
             }
         }
         return nextLayout;
     }
     else if (nextLayout.type === "empty") {
         nextLayout.attachment = {
+            index: index,
             selected: false,
-            render: null
+            render: (
+                <>
+                    <Key text={index.toString()}/> 
+                    Empty
+                </>
+            )
         }
         return nextLayout;
     }
     return nextLayout;
+}
+
+function getDestination(layout: Layout<RenderOptions>, index: string): number[] | null {
+    if (layout.type === "columns") {
+        for (let i = 0; i < layout.columns.length; i++) {
+            const column = layout.columns[i];
+            const destination = getDestination(column, index);
+            if (destination) {
+                return [i, ...destination];
+            }
+        }
+    } else if (layout.type === "rows") {
+        for (let i = 0; i < layout.rows.length; i++) {
+            const row = layout.rows[i];
+            const destination = getDestination(row, index);
+            if (destination) {
+                return [i, ...destination];
+            }
+        }
+    } else if (layout.type === "stack") {
+        if (layout.attachment?.index.toString() === index) {
+            return [];
+        }
+    } else if (layout.type === "pinned") {
+        if (layout.attachment?.index.toString() === index) {
+            return [];
+        }
+    } else if (layout.type === "empty") {
+        if (layout.attachment?.index.toString() === index) {
+            return [];
+        }
+    }
+
+    return null;
 }
 
 export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
@@ -142,42 +196,59 @@ export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
         }
     }, []);
 
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        for (const layout of windowManagementState?.layouts || []) {
-            if (layout.quickKey === event.key) {
-                sendInvoke({
-                    command: '@modal-commander/builtins#MoveWindowToCommand',
-                    type: 'moveWindowTo',
-                    layout: layout
-                }).then(
-                    () => sendMessage({ command: "hide" })
-                );
-
-                return;
-            }
-        }
-    }
-
     let bounds: Bounds | null = null
     let layout: Layout<RenderOptions> | null = null
     const monitor = windowManagementState?.monitors[0]
     let currentApplication: Application | null = null
+    let headerText = "Move Window To"
     if (monitor) {
         bounds = monitor.bounds
         layout = windowManagementState?.currentLayout?.[monitor.name] || null;
         currentApplication = windowManagementState?.currentApplication || null;
         if (layout && currentApplication) {
-            layout = processLayout(layout, props.source, currentApplication);
-            console.log("layout", layout)
+            layout = processLayout(layout, props.source, currentApplication, 0);
+            if (props.source === "app") {
+                headerText = `Move ${currentApplication?.name} To`
+            } else if (props.source === "window") {
+                headerText = `Move ${currentApplication?.focusedWindow?.title} To`
+            } else {
+                const window = windowManagementState?.windows.find(window => window.id === props.source);
+                if (window) {
+                    headerText = `Move ${window.title} To`
+                }
+            }
         }
     }
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (!layout) {
+            log.warn("No layout found");
+            return;
+        }
+        const index = event.key
+        const destination = getDestination(layout, index);
+        if (destination) {
+            sendInvoke({
+                command: '@modal-commander/builtins#MoveWindowToCommand',
+                type: 'moveWindowTo',
+                destination: destination,
+                source: props.source
+            })
+        }
+        // .then(
+        //     // () => sendMessage({ command: "hide" })
+        // );
+
+        return;
+    }
+
 
     return (
         <CommandWrapper
             {...props}
             keyHandler={handleKeyDown}
             testIdPrefix="move-window-to"
-            headerText="Move Window To"
+            headerText={headerText}
             inner={
                 layout && bounds && currentApplication ? (
                     <div className="p-1 rounded-sm bg-black relative" style={{

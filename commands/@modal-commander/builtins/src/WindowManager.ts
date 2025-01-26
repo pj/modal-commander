@@ -28,7 +28,7 @@ export const DEFAULT_LAYOUT: ScreenConfig = {
 export class WindowManager {
   private native: any;
   private windowCache: Map<number, Window> = new Map();
-  private applicationCache: Map<string, Map<string, Window>> = new Map();
+  private applicationCache: Map<string, Map<number, Window>> = new Map();
   private screenCache: Map<string, Monitor> = new Map();
   // Map of window id to the monitor it is located at - monitors not specifically located are sent to the primary screen
   private locatedAtWindows: Map<number, string> = new Map();
@@ -47,7 +47,6 @@ export class WindowManager {
     if (this.updateTimer) return;
     await this.updateCaches();
     this.startWindowWatcher();
-    this.startFocusWatcher();
   }
 
   public stop() {
@@ -66,31 +65,27 @@ export class WindowManager {
     this.updateTimer = setInterval(async () => {
       await this.updateCaches();
       await this.reconcileLayout();
-    }, 1000);
+      await this.checkFocus();
+    }, 500);
   }
 
-  private startFocusWatcher() {
-    // Check focus every 500ms
-    this.focusCheckInterval = setInterval(() => {
-      const focusedApp = this.native.getFocusedApplication();
-      if (focusedApp && focusedApp.name !== this.currentApplication?.name) {
-        if (focusedApp.bundleId === "com.github.Electron") {
-          return;
-        }
-        log.info("Focused application changed", focusedApp);
-        const cachedApp = this.applicationCache.get(focusedApp.name);
-        const cachedWindows = cachedApp ? Array.from(cachedApp.values()) : [];
-        const focusedWindow = cachedWindows.find(window => window.id === focusedApp.window.id);
-        this.currentApplication = {
-          name: focusedApp.name,
-          pid: focusedApp.pid,
-          bundleId: focusedApp.bundleId,
-          windows: cachedWindows,
-          focusedWindow: focusedWindow || undefined
-        }
-        log.info('Focused application changed', this.currentApplication);
+  private async checkFocus() {
+    const focusedApp = this.native.getFocusedApplication();
+    if (focusedApp && focusedApp.name !== this.currentApplication?.name) {
+      if (focusedApp.bundleId === "com.github.Electron") {
+        return;
       }
-    }, 500);
+      const cachedApp = this.applicationCache.get(focusedApp.name);
+      const cachedWindows = cachedApp ? Array.from(cachedApp.values()) : [];
+      const focusedWindow = cachedWindows.find(window => window.id === focusedApp.window.id);
+      this.currentApplication = {
+        name: focusedApp.name,
+        pid: focusedApp.pid,
+        bundleId: focusedApp.bundleId,
+        windows: cachedWindows,
+        focusedWindow: focusedWindow || undefined
+      }
+    }
   }
 
   private async updateCaches() {
@@ -110,7 +105,7 @@ export class WindowManager {
       if (!this.applicationCache.has(window.application)) {
         this.applicationCache.set(window.application, new Map());
       }
-      this.applicationCache.get(window.application)?.set(window.title, window);
+      this.applicationCache.get(window.application)?.set(window.id, window);
     }
   }
 
@@ -120,6 +115,7 @@ export class WindowManager {
     await this.reconcileLayout();
   }
 
+  // Reconciling the layout
   private async setWindowBounds(window: Window, bounds: Bounds) {
     let cached = this.windowCache.get(window.id);
     if (!cached) {
@@ -145,8 +141,11 @@ export class WindowManager {
     const app = this.applicationCache.get(layout.application);
     if (app) {
       if (layout.title) {
-        const window = app.get(layout.title);
-        if (window) windows.push(window);
+        for (const window of app.values()) {
+          if (window.title === layout.title) {
+            windows.push(window);
+          }
+        }
       } else {
         windows.push(...Array.from(app.values()));
       }

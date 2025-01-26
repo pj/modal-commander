@@ -9,6 +9,11 @@
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSRunningApplication.h>
 
+// Add near the top with other includes
+extern "C" {
+    AXError _AXUIElementGetWindow(AXUIElementRef, CGWindowID* out);
+}
+
 // Helper to convert CGRect to JavaScript object
 Napi::Object CGRectToObject(Napi::Env env, CGRect rect) {
     Napi::Object obj = Napi::Object::New(env);
@@ -132,14 +137,24 @@ Napi::Value getWindows(const Napi::CallbackInfo& info) {
         }
         
         // Get window owner name (application name)
-        char winName[256] = "";
         char appName[256] = "";
         
         if (CFStringGetCString(ownerName, appName, 256, kCFStringEncodingUTF8)) {
             windowObj.Set("application", appName);
-            windowObj.Set("name", appName);  // Use app name as window name for now
         } else {
             continue;  // Skip if we can't get the app name
+        }
+        
+        // Get window title
+        CFStringRef windowTitle;
+        if (CFDictionaryGetValueIfPresent(window, kCGWindowName, (const void**)&windowTitle)) {
+            char winTitle[256] = "";
+            if (CFStringGetCString(windowTitle, winTitle, 256, kCFStringEncodingUTF8)) {
+                windowObj.Set("title", winTitle);
+            }
+        } else {
+            // Fallback to app name if no window title
+            windowObj.Set("title", appName);
         }
         
         // Get window bounds

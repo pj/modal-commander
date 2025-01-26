@@ -8,6 +8,7 @@ const columnStyle = { fontSize: "0.5rem" }
 export type RenderOptions = {
     selected?: boolean;
     render?: React.ReactNode;
+    index: number;
 }
 
 type RootLayoutProps = {
@@ -40,7 +41,7 @@ function Window({ frame, text, margin, layout }: WindowProps) {
             </div>
             <hr className="border-gray-300" />
             <div className="flex h-full items-center justify-center text-center">
-                {layout.attachment?.render ? layout.attachment.render(layout) : text}
+                {layout.attachment?.render ? layout.attachment.render : text}
             </div>
         </div>
     );
