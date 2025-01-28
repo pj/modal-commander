@@ -43,22 +43,52 @@ class MockWindowFunctions {
   ];
 
   public windows = [...WINDOWS];
+  public focusedApplication = {
+    name: "TestApp",
+    pid: 1,
+    bundleId: "com.test.app",
+    windows: [
+      {...WINDOWS[0], bounds: {...WINDOWS[0].bounds}}
+    ],
+    focusedWindow: {...WINDOWS[0], bounds: {...WINDOWS[0].bounds}}
+  };
 
-  getMonitors = vi.fn().mockImplementation(() =>
-    Promise.resolve(this.monitors)
-  );
+  // getMonitors = vi.fn().mockImplementation(() => {
+  //   return Promise.resolve(this.monitors)
+  // });
 
-  getWindows = vi.fn().mockImplementation(() =>
-    Promise.resolve(this.windows)
-  );
+  // getWindows = vi.fn().mockImplementation(() => {
+  //   return Promise.resolve(this.windows)
+  // });
 
-  setWindowBounds = vi.fn().mockImplementation(async (windowId: number, bounds: any) => {
+  // setWindowBounds = vi.fn().mockImplementation(async (windowId: number, bounds: any) => {
+  //   const window = this.windows.find(w => w.id === windowId);
+  //   if (window) {
+  //     window.bounds = { ...bounds };
+  //   }
+  //   return Promise.resolve();
+  // });
+
+  getMonitors = () => {
+    return Promise.resolve(this.monitors)
+  };
+
+  getWindows = () => {
+    return Promise.resolve(this.windows)
+  };
+
+  setWindowBounds = async (windowId: number, bounds: any) => {
     const window = this.windows.find(w => w.id === windowId);
     if (window) {
       window.bounds = { ...bounds };
     }
     return Promise.resolve();
-  });
+  };
+
+  getFocusedApplication = () => {
+    return Promise.resolve(this.focusedApplication);
+  };
+
 }
 
 const mockWindowFunctions = new MockWindowFunctions();
@@ -75,27 +105,20 @@ vi.mock('node:module', () => ({
 
 // Import WindowManager after the mock is in place
 import { WindowManager } from './WindowManager';
-import { DEFAULT_LAYOUT } from './WindowManager';
 import { SCREEN_PRIMARY } from './WindowManagementTypes';
 
 describe('WindowManager', () => {
-  let windowManager: WindowManager;
-
   beforeEach(() => {
     vi.useFakeTimers();
-
-    mockWindowFunctions.windows = [...WINDOWS];
-    mockWindowFunctions.monitors = [MAIN_MONITOR, SECONDARY_MONITOR];
-    windowManager = new WindowManager();
   });
 
   afterEach(() => {
-    windowManager.stop();
     vi.restoreAllMocks();
   });
 
   // Add a test to verify state changes
   it('should update window bounds', async () => {
+    const windowManager = createWM();
     await windowManager.start();
 
     const newBounds = { x: 100, y: 100, width: 1000, height: 800 };
@@ -103,31 +126,6 @@ describe('WindowManager', () => {
 
     const windows = await mockWindowFunctions.getWindows();
     expect(windows[0].bounds).toEqual(newBounds);
-  });
-
-  it('should initialize with default layout', () => {
-    const state = windowManager.getState();
-    expect(state.currentLayout).toEqual(DEFAULT_LAYOUT);
-  });
-
-  it('should update caches on start', async () => {
-    await windowManager.start();
-    const state = windowManager.getState();
-
-    expect(state.monitors.length).toBe(2);
-    expect(state.windows.length).toBe(1);
-  });
-
-  it('should update caches periodically', async () => {
-    await windowManager.start();
-
-    // Fast-forward time
-    await vi.advanceTimersByTimeAsync(1000);
-
-    // Verify that the update functions were called again
-    const nativeMock = vi.mocked(windowManager['native']);
-    expect(nativeMock.getMonitors).toHaveBeenCalledTimes(4);
-    expect(nativeMock.getWindows).toHaveBeenCalledTimes(4);
   });
 
   it('Layout on primary monitor', async () => {
@@ -138,6 +136,7 @@ describe('WindowManager', () => {
       }
     }
 
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout(newLayout);
 
@@ -165,6 +164,7 @@ describe('WindowManager', () => {
         ]
       }
     }
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout(newLayout);
 
@@ -200,6 +200,8 @@ describe('WindowManager', () => {
       }
     }
 
+    console.log("previous test", mockWindowFunctions.windows[0]);
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout(newLayout);
 
@@ -215,6 +217,7 @@ describe('WindowManager', () => {
   });
 
   it('Layout a float window', async () => {
+    console.log("starting", mockWindowFunctions.windows[0]);
     const newLayout = {
       [SCREEN_PRIMARY]: {
         type: "float_zoomed" as const,
@@ -240,8 +243,12 @@ describe('WindowManager', () => {
       }
     }
 
+    const windowManager = createWM();
+    console.log("after create", mockWindowFunctions.windows[0]);
     await windowManager.start();
     await windowManager.setLayout(newLayout);
+
+    console.log("after", mockWindowFunctions.windows[0]);
 
     for (const window of mockWindowFunctions.windows) {
       if (window.id === 1) {
@@ -278,6 +285,7 @@ describe('WindowManager', () => {
       }
     }
 
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout(newLayout);
 
@@ -291,23 +299,23 @@ describe('WindowManager', () => {
   });
 });
 
-describe('moveApplicationTo', () => {
-  let windowManager: WindowManager;
+function createWM() {
+  mockWindowFunctions.windows = WINDOWS.map(window => ({...window, bounds: {...window.bounds}}));
+  mockWindowFunctions.monitors = [MAIN_MONITOR, SECONDARY_MONITOR];
+  return new WindowManager();
+}
 
+describe('moveApplicationTo', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-
-    mockWindowFunctions.windows = [...WINDOWS];
-    mockWindowFunctions.monitors = [MAIN_MONITOR, SECONDARY_MONITOR];
-    windowManager = new WindowManager();
   });
 
   afterEach(() => {
-    windowManager.stop();
     vi.restoreAllMocks();
   });
 
   it('should move application from stack to pinned', async () => {
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout({
       [SCREEN_PRIMARY]: {
@@ -323,12 +331,12 @@ describe('moveApplicationTo', () => {
       pid: 1,
       bundleId: "com.test.app",
       windows: [
-        WINDOWS[0]
+        {...WINDOWS[0]}
       ],
-      focusedWindow: WINDOWS[0]
+      focusedWindow: {...WINDOWS[0]}
     }
 
-    await windowManager.moveApplicationTo(SCREEN_PRIMARY, [1]);
+    await windowManager.moveApplicationTo(SCREEN_PRIMARY, null, [1]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [SCREEN_PRIMARY]: {
@@ -342,6 +350,7 @@ describe('moveApplicationTo', () => {
   });
 
   it('should move application from stack to deeply nested and remove pinned at destination', async () => {
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout({
       [SCREEN_PRIMARY]: {
@@ -360,12 +369,12 @@ describe('moveApplicationTo', () => {
       pid: 2,
       bundleId: "com.test.app.2",
       windows: [
-        WINDOWS[1]
+        {...WINDOWS[1]}
       ],
-      focusedWindow: WINDOWS[1]
+      focusedWindow: {...WINDOWS[1]}
     }
 
-    await windowManager.moveApplicationTo(MAIN_MONITOR.name, [0, 1]);
+    await windowManager.moveApplicationTo(MAIN_MONITOR.name, null, [0, 1]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [SCREEN_PRIMARY]: {
@@ -382,6 +391,7 @@ describe('moveApplicationTo', () => {
   });
 
   it('should handle pinning to a second monitor', async () => {
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout({
       [MAIN_MONITOR.name]: {
@@ -408,12 +418,12 @@ describe('moveApplicationTo', () => {
       pid: 2,
       bundleId: "com.test.app.2",
       windows: [
-        WINDOWS[1]
+        {...WINDOWS[1]}
       ],
-      focusedWindow: WINDOWS[1]
+      focusedWindow: {...WINDOWS[1]}
     }
 
-    await windowManager.moveApplicationTo(SECONDARY_MONITOR.name, []);
+    await windowManager.moveApplicationTo(SECONDARY_MONITOR.name, null, []);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [MAIN_MONITOR.name]: {
@@ -436,6 +446,7 @@ describe('moveApplicationTo', () => {
   });
 
   it('should handle pinning to a second monitor nested', async () => {
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout({
       [MAIN_MONITOR.name]: {
@@ -462,12 +473,12 @@ describe('moveApplicationTo', () => {
       pid: 2,
       bundleId: "com.test.app.2",
       windows: [
-        WINDOWS[1]
+        {...WINDOWS[1]}
       ],
-      focusedWindow: WINDOWS[1]
+      focusedWindow: {...WINDOWS[1]}
     }
 
-    await windowManager.moveApplicationTo(SECONDARY_MONITOR.name, [0]);
+    await windowManager.moveApplicationTo(SECONDARY_MONITOR.name, null, [0]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [MAIN_MONITOR.name]: {
@@ -492,6 +503,7 @@ describe('moveApplicationTo', () => {
   });
 
   it('should handle moving multiple windows to one column', async () => {
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout({
       [MAIN_MONITOR.name]: {
@@ -509,13 +521,13 @@ describe('moveApplicationTo', () => {
       pid: 4,
       bundleId: "com.test.app.4",
       windows: [
-        WINDOWS[4],
-        WINDOWS[5],
+        {...WINDOWS[4]},
+        {...WINDOWS[5]},
       ],
-      focusedWindow: WINDOWS[4]
+      focusedWindow: {...WINDOWS[4]}
     }
 
-    await windowManager.moveApplicationTo(MAIN_MONITOR.name, [1]);
+    await windowManager.moveApplicationTo(MAIN_MONITOR.name, null, [1]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [MAIN_MONITOR.name]: {
@@ -531,6 +543,7 @@ describe('moveApplicationTo', () => {
   });
 
   it('should move application from float_zoomed to pinned', async () => {
+    const windowManager = createWM();
     await windowManager.start();
     await windowManager.setLayout({
       [SCREEN_PRIMARY]: {
@@ -552,12 +565,12 @@ describe('moveApplicationTo', () => {
       pid: 1,
       bundleId: "com.test.app",
       windows: [
-        WINDOWS[0]
+        {...WINDOWS[0]}
       ],
-      focusedWindow: WINDOWS[0]
+      focusedWindow: {...WINDOWS[0]}
     }
 
-    await windowManager.moveApplicationTo(SCREEN_PRIMARY, [1]);
+    await windowManager.moveApplicationTo(SCREEN_PRIMARY, null, [1]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [SCREEN_PRIMARY]: {

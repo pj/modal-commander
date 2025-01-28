@@ -30,7 +30,7 @@ export class WindowManager {
   private windowCache: Map<number, Window> = new Map();
   private applicationCache: Map<string, Map<number, Window>> = new Map();
   private screenCache: Map<string, Monitor> = new Map();
-  // Map of window id to the monitor it is located at - monitors not specifically located are sent to the primary screen
+  // Map of window id to the monitor it is located at - windows not specifically located are sent to the primary screen
   private locatedAtWindows: Map<number, string> = new Map();
   private currentLayout: ScreenConfig | null = null;
   private updateTimer: NodeJS.Timeout | null = null;
@@ -62,11 +62,14 @@ export class WindowManager {
 
   private startWindowWatcher() {
     // Poll for window changes every second
-    this.updateTimer = setInterval(async () => {
-      await this.updateCaches();
-      await this.reconcileLayout();
-      await this.checkFocus();
-    }, 500);
+    this.updateTimer = setInterval(
+      async () => {
+        await this.updateCaches();
+        await this.reconcileLayout();
+        await this.checkFocus();
+      }, 
+      500
+    );
   }
 
   private async checkFocus() {
@@ -213,6 +216,7 @@ export class WindowManager {
   private moveApplicationToMonitor(
     screenSet: ScreenConfig,
     application: string,
+    window: number |string | null,
     destinationMonitor: string,
     destination: number[]
   ): void {
@@ -233,7 +237,7 @@ export class WindowManager {
           }
         }
       }
-      console.log("moveApplicationToMonitor", {destinationMonitor, monitorName, destination, monitorLayout, application, applicationDestination})
+      console.log("moveApplicationToMonitor", {destinationMonitor, monitorName, destination, monitorLayout, application, window,applicationDestination})
       const found = this.moveApplication(monitorLayout, application, applicationDestination);
       if (found) {
         screenSet[monitorName] = {
@@ -252,7 +256,7 @@ export class WindowManager {
     }
   }
 
-  public async moveApplicationTo(monitor: string, destinationPath: number[]) {
+  public async moveApplicationTo(monitor: string, window: number | string | null, destinationPath: number[]) {
     if (!this.currentLayout) {
       log.warn(`No current layout`);
       return;
@@ -265,9 +269,9 @@ export class WindowManager {
 
     let application = this.currentApplication.name;
     console.log("================================================")
-    console.log("moveApplicationTo", application, monitor, destinationPath)
+    console.log("moveApplicationTo", application, monitor, window, destinationPath)
 
-    this.moveApplicationToMonitor(this.currentLayout, application, monitor, destinationPath);
+    this.moveApplicationToMonitor(this.currentLayout, application, window, monitor, destinationPath);
     console.log("================================================")
     console.log(this.currentLayout)
     await this.reconcileLayout();
