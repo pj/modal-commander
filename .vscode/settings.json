@@ -9,5 +9,16 @@
       ],
       "url": "https://json.schemastore.org/electron-builder"
     }
-  ]
+  ],
+  "vitest.commandLine": "npm run test",
+  "vitest.include": [
+    "commands/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
+  ],
+  "vitest.exclude": [
+    "**/release/**",
+    "**/dist/**",
+    "**/node_modules/**"
+  ],
+  "vitest.enable": true,
+  "vitest.configSearchPatternExclude": "{**/release/**,**/dist/**,**/node_modules/**,**/.*/**,*.d.ts}"
 }

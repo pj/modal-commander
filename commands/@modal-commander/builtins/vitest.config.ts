@@ -5,6 +5,13 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
     globals: true,
+  // inspectBrk: true,
+  // inspect: true,
+  // fileParallelism: false,
+  // browser: {
+  //   provider: 'playwright',
+  //   instances: [{ browser: 'chromium' }]
+  // },
   },
   build: {
     sourcemap: true,

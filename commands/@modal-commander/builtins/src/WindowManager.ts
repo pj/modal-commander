@@ -124,12 +124,15 @@ export class WindowManager {
       const newColumns: Layout[] = [];
       let dest: number | null = null;
       let rest: number[] | null = null;
+      let ended = false;
       if (destination) {
         [dest, ...rest] = destination;
+        ended = rest.length === 0;
       }
+      console.log("moveApplication columns", {layout, application, destination, dest, rest, ended})
       for (let i = 0; i < layout.columns.length; i++) {
         const column = layout.columns[i];
-        if (i === dest) {
+        if (i === dest && ended) {
           if (column.type !== "stack") {
             newColumns.push({
               type: "pinned",
@@ -156,12 +159,15 @@ export class WindowManager {
       const newRows: Layout[] = [];
       let dest: number | null = null;
       let rest: number[] | null = null;
+      let ended = false;
       if (destination) {
         [dest, ...rest] = destination;
+        ended = rest.length === 0;
       }
+      console.log("moveApplication rows", {layout, application, destination, dest, rest, ended})
       for (let i = 0; i < layout.rows.length; i++) {
         const row = layout.rows[i];
-        if (i === dest) {
+        if (i === dest && ended) {
           if (row.type !== "stack") {
             newRows.push({
               type: "pinned",
@@ -196,6 +202,7 @@ export class WindowManager {
       layout.floats = layout.floats?.filter(float => float.application !== application) || [];
       layout.zoomed = layout.zoomed?.filter(zoomed => zoomed.application !== application) || [];
     } else if (layout.type === "pinned") {
+      console.log("moveApplication pinned", {layout, application, destination})
       if (layout.application === application) {
         return true;
       }
@@ -210,7 +217,23 @@ export class WindowManager {
     destination: number[]
   ): void {
     for (const [monitorName, monitorLayout] of Object.entries(screenSet)) {
-      const applicationDestination = monitorName === destinationMonitor ? destination : null;
+      console.log("--------------------------------")
+      let applicationDestination = monitorName === destinationMonitor ? destination : null;
+      if (destinationMonitor === SCREEN_PRIMARY) {
+        const primaryMonitor = Array.from(this.screenCache.values()).find(s => s.main);
+        if (primaryMonitor) {
+          applicationDestination = destination;
+        }
+      }
+      if (monitorName === SCREEN_PRIMARY) {
+        const primaryMonitor = Array.from(this.screenCache.values()).find(s => s.main);
+        if (primaryMonitor) {
+          if (primaryMonitor.name === destinationMonitor) {
+            applicationDestination = destination;
+          }
+        }
+      }
+      console.log("moveApplicationToMonitor", {destinationMonitor, monitorName, destination, monitorLayout, application, applicationDestination})
       const found = this.moveApplication(monitorLayout, application, applicationDestination);
       if (found) {
         screenSet[monitorName] = {
@@ -229,7 +252,7 @@ export class WindowManager {
     }
   }
 
-  public async moveApplicationTo(monitor: string, destination: number[]) {
+  public async moveApplicationTo(monitor: string, destinationPath: number[]) {
     if (!this.currentLayout) {
       log.warn(`No current layout`);
       return;
@@ -241,8 +264,12 @@ export class WindowManager {
     }
 
     let application = this.currentApplication.name;
+    console.log("================================================")
+    console.log("moveApplicationTo", application, monitor, destinationPath)
 
-    this.moveApplicationToMonitor(this.currentLayout, application, monitor, destination);
+    this.moveApplicationToMonitor(this.currentLayout, application, monitor, destinationPath);
+    console.log("================================================")
+    console.log(this.currentLayout)
     await this.reconcileLayout();
   }
 

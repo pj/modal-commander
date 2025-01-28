@@ -318,174 +318,288 @@ describe('moveApplicationTo', () => {
         ]
       }
     });
+    windowManager['currentApplication'] = {
+      name: "TestApp",
+      pid: 1,
+      bundleId: "com.test.app",
+      windows: [
+        WINDOWS[0]
+      ],
+      focusedWindow: WINDOWS[0]
+    }
 
-    await windowManager.moveApplicationTo("TestApp", [1]);
+    await windowManager.moveApplicationTo(SCREEN_PRIMARY, [1]);
 
-    expect(windowManager.getState().currentLayout).toEqual({
-      type: "columns",
-      columns: [
-        { type: "empty", percentage: 50 },
-        { type: "pinned", application: "TestApp", percentage: 50 }
-      ]
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        columns: [
+          { type: "stack", percentage: 50 },
+          { type: "pinned", application: "TestApp", percentage: 50 }
+        ]
+      }
     });
   });
 
-  // it('should move application from stack to nested layout', async () => {
-  //   const manager = new WindowManager();
-  //   await manager.setLayout({
-  //     type: "columns",
-  //     columns: [
-  //       { 
-  //         type: "rows",
-  //         percentage: 50,
-  //         rows: [
-  //           { type: "stack", percentage: 50 },
-  //           { type: "stack", percentage: 50 }
-  //         ]
-  //       },
-  //       { type: "pinned", application: "App1", percentage: 50 }
-  //     ]
-  //   });
+  it('should move application from stack to deeply nested and remove pinned at destination', async () => {
+    await windowManager.start();
+    await windowManager.setLayout({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        columns: [
+          { type: "rows", percentage: 50, rows: [
+            { type: "stack", percentage: 50 },
+            { type: "pinned", application: "TestApp", percentage: 50 },
+          ] },
+          { type: "stack", percentage: 50 },
+        ]
+      }
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp 2",
+      pid: 2,
+      bundleId: "com.test.app.2",
+      windows: [
+        WINDOWS[1]
+      ],
+      focusedWindow: WINDOWS[1]
+    }
 
-  //   await manager.moveApplicationTo("App1", [0, 1]);
+    await windowManager.moveApplicationTo(MAIN_MONITOR.name, [0, 1]);
 
-  //   expect(manager.getState().currentLayout).toEqual({
-  //     type: "columns",
-  //     columns: [
-  //       { 
-  //         type: "rows",
-  //         percentage: 50,
-  //         rows: [
-  //           { type: "stack", percentage: 50 },
-  //           { type: "pinned", application: "App1", percentage: 50 }
-  //         ]
-  //       },
-  //       { type: "empty", percentage: 50 }
-  //     ]
-  //   });
-  // });
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        columns: [
+          { type: "rows", percentage: 50, rows: [
+            { type: "stack", percentage: 50 },
+            { type: "pinned", application: "TestApp 2", percentage: 50 }
+          ] },
+          { type: "stack", percentage: 50 }
+        ]
+      }
+    });
+  });
 
-  // it('should handle float_zoomed layouts', async () => {
-  //   const manager = new WindowManager();
-  //   await manager.setLayout({
-  //     type: "float_zoomed",
-  //     layout: {
-  //       type: "columns",
-  //       columns: [
-  //         { type: "pinned", application: "App1", percentage: 50 },
-  //         { type: "stack", percentage: 50 }
-  //       ]
-  //     },
-  //     floats: [],
-  //     zoomed: []
-  //   });
+  it('should handle pinning to a second monitor', async () => {
+    await windowManager.start();
+    await windowManager.setLayout({
+      [MAIN_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "rows", percentage: 50, rows: [
+            { type: "stack", percentage: 50 },
+            { type: "pinned", application: "TestApp 2", percentage: 50 },
+          ] },
+          { type: "stack", percentage: 50 },
+        ]
+      },
+      [SECONDARY_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "empty", percentage: 100 },
+        ]
+      }
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp 2",
+      pid: 2,
+      bundleId: "com.test.app.2",
+      windows: [
+        WINDOWS[1]
+      ],
+      focusedWindow: WINDOWS[1]
+    }
 
-  //   await manager.moveApplicationTo("App1", [0, 1]);
+    await windowManager.moveApplicationTo(SECONDARY_MONITOR.name, []);
 
-  //   expect(manager.getState().currentLayout).toEqual({
-  //     type: "float_zoomed",
-  //     layout: {
-  //       type: "columns",
-  //       columns: [
-  //         { type: "empty", percentage: 50 },
-  //         { type: "pinned", application: "App1", percentage: 50 }
-  //       ]
-  //     },
-  //     floats: [],
-  //     zoomed: []
-  //   });
-  // });
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [MAIN_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "rows", percentage: 50, rows: [
+            { type: "stack", percentage: 50 },
+            { type: "empty", percentage: 50 }
+          ] },
+          { type: "stack", percentage: 50 }
+        ]
+      },
+      [SECONDARY_MONITOR.name]: { 
+        type: "pinned", 
+        application: "TestApp 2", 
+        percentage: 100 
+      }
+    });
+  });
 
-  // it('should handle multiple monitors', async () => {
-  //   const manager = new WindowManager();
-  //   const monitors = [
-  //     { name: "Primary", bounds: { x: 0, y: 0, width: 1920, height: 1080 }, main: true },
-  //     { name: "Secondary", bounds: { x: 1920, y: 0, width: 1920, height: 1080 }, main: false }
-  //   ];
-  //   manager.setMonitors(monitors);
+  it('should handle pinning to a second monitor nested', async () => {
+    await windowManager.start();
+    await windowManager.setLayout({
+      [MAIN_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "rows", percentage: 50, rows: [
+            { type: "empty", percentage: 50 },
+            { type: "pinned", application: "TestApp 2", percentage: 50 },
+          ] },
+          { type: "stack", percentage: 50 },
+        ]
+      },
+      [SECONDARY_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "empty", percentage: 100 },
+        ]
+      }
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp 2",
+      pid: 2,
+      bundleId: "com.test.app.2",
+      windows: [
+        WINDOWS[1]
+      ],
+      focusedWindow: WINDOWS[1]
+    }
 
-  //   await manager.setLayout({
-  //     type: "columns",
-  //     columns: [
-  //       { type: "pinned", application: "App1", percentage: 100 }
-  //     ]
-  //   });
+    await windowManager.moveApplicationTo(SECONDARY_MONITOR.name, [0]);
 
-  //   await manager.moveApplicationTo("App1", [0]);
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [MAIN_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "rows", percentage: 50, rows: [
+            { type: "empty", percentage: 50 },
+            { type: "empty", percentage: 50 }
+          ] },
+          { type: "stack", percentage: 50 }
+        ]
+      },
+      [SECONDARY_MONITOR.name]: { 
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "pinned", application: "TestApp 2", percentage: 100 }
+        ]
+      }
+    });
+  });
 
-  //   expect(manager.getState().currentLayout).toEqual({
-  //     type: "columns",
-  //     columns: [
-  //       { type: "pinned", application: "App1", percentage: 100 }
-  //     ]
-  //   });
-  // });
+  it('should handle moving multiple windows to one column', async () => {
+    await windowManager.start();
+    await windowManager.setLayout({
+      [MAIN_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 33 },
+          { type: "pinned", application: "TestApp 4", title: "Test Window 4", percentage: 33 },
+          { type: "pinned", application: "TestApp 4", title: "Test Window 5", percentage: 33 },
+        ] 
+      },
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp 4",
+      pid: 4,
+      bundleId: "com.test.app.4",
+      windows: [
+        WINDOWS[4],
+        WINDOWS[5],
+      ],
+      focusedWindow: WINDOWS[4]
+    }
 
-  // it('should handle deeply nested layouts', async () => {
-  //   const manager = new WindowManager();
-  //   await manager.setLayout({
-  //     type: "columns",
-  //     columns: [
-  //       {
-  //         type: "rows",
-  //         percentage: 50,
-  //         rows: [
-  //           {
-  //             type: "columns",
-  //             percentage: 50,
-  //             columns: [
-  //               { type: "pinned", application: "App1", percentage: 50 },
-  //               { type: "stack", percentage: 50 }
-  //             ]
-  //           },
-  //           { type: "stack", percentage: 50 }
-  //         ]
-  //       },
-  //       { type: "stack", percentage: 50 }
-  //     ]
-  //   });
+    await windowManager.moveApplicationTo(MAIN_MONITOR.name, [1]);
 
-  //   await manager.moveApplicationTo("App1", [1]);
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [MAIN_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 33 },
+          { type: "pinned", application: "TestApp 4", percentage: 33 },
+          { type: "empty", percentage: 33 },
+        ]
+      },
+    });
+  });
 
-  //   expect(manager.getState().currentLayout).toEqual({
-  //     type: "columns",
-  //     columns: [
-  //       {
-  //         type: "rows",
-  //         percentage: 50,
-  //         rows: [
-  //           {
-  //             type: "columns",
-  //             percentage: 50,
-  //             columns: [
-  //               { type: "empty", percentage: 50 },
-  //               { type: "stack", percentage: 50 }
-  //             ]
-  //           },
-  //           { type: "stack", percentage: 50 }
-  //         ]
-  //       },
-  //       { type: "pinned", application: "App1", percentage: 50 }
-  //     ]
-  //   });
-  // });
+  it('should move application from float_zoomed to pinned', async () => {
+    await windowManager.start();
+    await windowManager.setLayout({
+      [SCREEN_PRIMARY]: {
+        type: "float_zoomed",
+        floats: [
+          { type: "pinned", application: "TestApp", percentage: 100 },
+        ],
+        layout: {
+          type: "columns",
+          columns: [
+            { type: "stack", percentage: 50 },
+            { type: "empty", percentage: 50 },
+          ]
+        }
+      }
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp",
+      pid: 1,
+      bundleId: "com.test.app",
+      windows: [
+        WINDOWS[0]
+      ],
+      focusedWindow: WINDOWS[0]
+    }
 
-  // it('should preserve computed windows when moving', async () => {
-  //   const manager = new WindowManager();
-  //   const window = { id: 1, application: "App1", bounds: { x: 0, y: 0, width: 100, height: 100 } };
-  //   manager.setWindows([window]);
+    await windowManager.moveApplicationTo(SCREEN_PRIMARY, [1]);
 
-  //   await manager.setLayout({
-  //     type: "columns",
-  //     columns: [
-  //       { type: "pinned", application: "App1", percentage: 50, computed: [window] },
-  //       { type: "stack", percentage: 50 }
-  //     ]
-  //   });
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [SCREEN_PRIMARY]: {
+        type: "float_zoomed",
+        floats: [],
+        zoomed: [],
+        layout: {
+          type: "columns",
+          columns: [
+            { type: "stack", percentage: 50 },
+            { type: "pinned", application: "TestApp", percentage: 50 },
+          ]
+        }
+      }
+    });
+  });
 
-  //   await manager.moveApplicationTo("App1", [1]);
+});
 
-  //   const newLayout = manager.getState().currentLayout;
-  //   expect(newLayout.columns[1].computed).toContainEqual(window);
-  // });
-}); 
+// Helper function to remove computed fields recursively
+function removeComputed(screenSet: any) {
+  const output: any = {};
+  for (const [key, value] of Object.entries(screenSet)) {
+    output[key] = removeComputedLayout(value);
+  }
+  return output;
+}
+
+function removeComputedLayout(layout: any): any {
+  if (!layout) return layout;
+  
+  const { computed, computed_floats, computed_zoomed, ...rest } = layout;
+  
+  if (rest.columns) {
+    rest.columns = rest.columns.map(removeComputedLayout);
+  }
+  if (rest.rows) {
+    rest.rows = rest.rows.map(removeComputedLayout);
+  }
+  if (rest.layout) {
+    rest.layout = removeComputedLayout(rest.layout);
+  }
+  
+  return rest;
+}
