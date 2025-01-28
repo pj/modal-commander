@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useState } from "react"
 import { CommandWrapper, DefaultCommandProps } from "./CommandWrapper"
 import { LayoutNode, RenderOptions } from "./RootLayout"
-import { Application, Bounds, FrontendState, Layout, Monitor, ScreenConfig } from "./WindowManagementTypes"
+import { Application, Bounds, FrontendState, Layout, Monitor, SCREEN_PRIMARY, ScreenConfig } from "./WindowManagementTypes"
 import { Key } from "./Key"
 import log from "electron-log"
 export type MoveSource = number | "app" | "window"
@@ -203,7 +203,11 @@ export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
     let headerText = "Move Window To"
     if (monitor) {
         bounds = monitor.bounds
-        layout = windowManagementState?.currentLayout?.[monitor.name] || null;
+        if (monitor.main && windowManagementState?.currentLayout?.[SCREEN_PRIMARY]) {
+            layout = windowManagementState?.currentLayout?.[SCREEN_PRIMARY]
+        } else {
+            layout = windowManagementState?.currentLayout?.[monitor.name] || null
+        }
         currentApplication = windowManagementState?.currentApplication || null;
         if (layout && currentApplication) {
             layout = processLayout(layout, props.source, currentApplication, 0);
@@ -219,6 +223,12 @@ export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
             }
         }
     }
+    console.log("--------------------------------")
+    console.log("windowManagementState", windowManagementState)
+    console.log("monitor", monitor)
+    console.log("layout", layout)
+    console.log("currentApplication", currentApplication)
+    console.log("bounds", bounds)
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (!layout) {

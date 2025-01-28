@@ -18,6 +18,7 @@ const require = createRequire(import.meta.url);
 export const DEFAULT_LAYOUT: ScreenConfig = {
   [SCREEN_PRIMARY]: {
     type: "columns",
+    percentage: 100,
     columns: [{
       type: "stack",
       percentage: 100
@@ -118,9 +119,24 @@ export class WindowManager {
     await this.reconcileLayout();
   }
 
-  private moveApplication(
+  private createPinnedLayout(application: string, window: number | string | null, percentage: number): PinnedLayout {
+    const pinned: PinnedLayout = {
+      type: "pinned",
+      application,
+      percentage,
+    }
+    if (typeof window === "string") {
+      pinned.title = window;
+    } else if (typeof window === "number") {
+      pinned.id = window;
+    }
+    return pinned;
+  }
+
+  private moveApplicationOrWindow(
     layout: Layout,
     application: string,
+    window: number | string | null,
     destination: number[] | null
   ): boolean {
     if (layout.type === "columns") {
@@ -137,16 +153,12 @@ export class WindowManager {
         const column = layout.columns[i];
         if (i === dest && ended) {
           if (column.type !== "stack") {
-            newColumns.push({
-              type: "pinned",
-              application,
-              percentage: column.percentage
-            });
+            newColumns.push(this.createPinnedLayout(application, window, column.percentage));
           } else {
             newColumns.push(column);
           }
         } else {
-          const pinned = this.moveApplication(column, application, rest);
+          const pinned = this.moveApplicationOrWindow(column, application, window, rest);
           if (pinned) {
             newColumns.push({
               type: "empty",
@@ -181,7 +193,7 @@ export class WindowManager {
             newRows.push(row);
           }
         } else {
-          const pinned = this.moveApplication(row, application, rest);
+          const pinned = this.moveApplicationOrWindow(row, application, window, rest);
           if (pinned) {
             newRows.push({
               type: "empty",
@@ -194,7 +206,7 @@ export class WindowManager {
       }
       layout.rows = newRows;
     } else if (layout.type === "float_zoomed") {
-      const pinned = this.moveApplication(layout.layout, application, destination);
+      const pinned = this.moveApplicationOrWindow(layout.layout, application, window, destination);
       if (pinned) {
         layout.layout = {
           type: "empty",
@@ -207,7 +219,15 @@ export class WindowManager {
     } else if (layout.type === "pinned") {
       console.log("moveApplication pinned", {layout, application, destination})
       if (layout.application === application) {
-        return true;
+        if (window) {
+          if (typeof window === "string" && layout.title === window) {
+            return true;
+          } else if (typeof window === "number" && layout.id === window) {
+            return true;
+          }
+        } else {
+          return true;
+        }
       }
     }
     return false;
@@ -216,7 +236,7 @@ export class WindowManager {
   private moveApplicationToMonitor(
     screenSet: ScreenConfig,
     application: string,
-    window: number |string | null,
+    window: number | string | null,
     destinationMonitor: string,
     destination: number[]
   ): void {
@@ -238,7 +258,7 @@ export class WindowManager {
         }
       }
       console.log("moveApplicationToMonitor", {destinationMonitor, monitorName, destination, monitorLayout, application, window,applicationDestination})
-      const found = this.moveApplication(monitorLayout, application, applicationDestination);
+      const found = this.moveApplicationOrWindow(monitorLayout, application, window, applicationDestination);
       if (found) {
         screenSet[monitorName] = {
           type: "empty",
@@ -247,27 +267,17 @@ export class WindowManager {
       }
 
       if (applicationDestination && applicationDestination.length === 0) {
-        screenSet[monitorName] = {
-          type: "pinned",
-          application,
-          percentage: monitorLayout.percentage
-        };
+        screenSet[monitorName] = this.createPinnedLayout(application, window, monitorLayout.percentage || 0);
       }
     }
   }
 
-  public async moveApplicationTo(monitor: string, window: number | string | null, destinationPath: number[]) {
+  public async moveTo(monitor: string, application: string, window: number | string | null, destinationPath: number[]) {
     if (!this.currentLayout) {
       log.warn(`No current layout`);
       return;
     }
 
-    if (!this.currentApplication) {
-      log.warn(`No current application`);
-      return;
-    }
-
-    let application = this.currentApplication.name;
     console.log("================================================")
     console.log("moveApplicationTo", application, monitor, window, destinationPath)
 
@@ -275,9 +285,6 @@ export class WindowManager {
     console.log("================================================")
     console.log(this.currentLayout)
     await this.reconcileLayout();
-  }
-
-  public async moveWindowTo(windowId: number, destination: number[]) {
   }
 
   // Reconciling the layout
@@ -307,13 +314,15 @@ export class WindowManager {
     if (app) {
       if (layout.title) {
         for (const window of app.values()) {
-          if (window.title === layout.title) {
+          if (window.title === layout.title || window.id === layout.id) {
             windows.push(window);
           }
         }
       } else {
         windows.push(...Array.from(app.values()));
       }
+    } else {
+      console.log("no application found for", layout.application);
     }
     return windows;
   }

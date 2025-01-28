@@ -152,6 +152,7 @@ describe('WindowManager', () => {
     const newLayout = {
       [SCREEN_PRIMARY]: {
         type: "columns" as const,
+        percentage: 100,
         columns: [
           {
             type: "stack" as const,
@@ -181,6 +182,7 @@ describe('WindowManager', () => {
     const newLayout = {
       [SCREEN_PRIMARY]: {
         type: "rows" as const,
+        percentage: 100,
         rows: [
           {
             type: "stack" as const,
@@ -221,15 +223,18 @@ describe('WindowManager', () => {
     const newLayout = {
       [SCREEN_PRIMARY]: {
         type: "float_zoomed" as const,
+        percentage: 100,
         floats: [
           {
             type: "pinned" as const,
             application: "TestApp",
             title: "Test Window",
+            percentage: 100,
           }
         ],
         layout: {
           type: "columns" as const,
+          percentage: 100,
           columns: [
             {
               type: "stack" as const,
@@ -263,15 +268,18 @@ describe('WindowManager', () => {
     const newLayout = {
       [SCREEN_PRIMARY]: {
         type: "float_zoomed" as const,
+        percentage: 100,
         zoomed: [
           {
             type: "pinned" as const,
             application: "TestApp",
             title: "Test Window",
+            percentage: 100,
           }
         ],
         layout: {
           type: "columns" as const,
+          percentage: 100,
           columns: [
             {
               type: "stack" as const,
@@ -320,6 +328,7 @@ describe('moveApplicationTo', () => {
     await windowManager.setLayout({
       [SCREEN_PRIMARY]: {
         type: "columns",
+        percentage: 100,
         columns: [
           { type: "stack", percentage: 50 },
           { type: "empty", percentage: 50 },
@@ -336,11 +345,12 @@ describe('moveApplicationTo', () => {
       focusedWindow: {...WINDOWS[0]}
     }
 
-    await windowManager.moveApplicationTo(SCREEN_PRIMARY, null, [1]);
+    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp", null, [1]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [SCREEN_PRIMARY]: {
         type: "columns",
+        percentage: 100,
         columns: [
           { type: "stack", percentage: 50 },
           { type: "pinned", application: "TestApp", percentage: 50 }
@@ -355,6 +365,7 @@ describe('moveApplicationTo', () => {
     await windowManager.setLayout({
       [SCREEN_PRIMARY]: {
         type: "columns",
+        percentage: 100,
         columns: [
           { type: "rows", percentage: 50, rows: [
             { type: "stack", percentage: 50 },
@@ -374,11 +385,12 @@ describe('moveApplicationTo', () => {
       focusedWindow: {...WINDOWS[1]}
     }
 
-    await windowManager.moveApplicationTo(MAIN_MONITOR.name, null, [0, 1]);
+    await windowManager.moveTo(MAIN_MONITOR.name, "TestApp 2", null, [0, 1]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [SCREEN_PRIMARY]: {
         type: "columns",
+        percentage: 100,
         columns: [
           { type: "rows", percentage: 50, rows: [
             { type: "stack", percentage: 50 },
@@ -423,7 +435,7 @@ describe('moveApplicationTo', () => {
       focusedWindow: {...WINDOWS[1]}
     }
 
-    await windowManager.moveApplicationTo(SECONDARY_MONITOR.name, null, []);
+    await windowManager.moveTo(SECONDARY_MONITOR.name, "TestApp 2", null, []);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [MAIN_MONITOR.name]: {
@@ -478,7 +490,7 @@ describe('moveApplicationTo', () => {
       focusedWindow: {...WINDOWS[1]}
     }
 
-    await windowManager.moveApplicationTo(SECONDARY_MONITOR.name, null, [0]);
+    await windowManager.moveTo(SECONDARY_MONITOR.name, "TestApp 2", null, []);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [MAIN_MONITOR.name]: {
@@ -527,7 +539,7 @@ describe('moveApplicationTo', () => {
       focusedWindow: {...WINDOWS[4]}
     }
 
-    await windowManager.moveApplicationTo(MAIN_MONITOR.name, null, [1]);
+    await windowManager.moveTo(MAIN_MONITOR.name, "TestApp 4", null, [1]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [MAIN_MONITOR.name]: {
@@ -548,11 +560,13 @@ describe('moveApplicationTo', () => {
     await windowManager.setLayout({
       [SCREEN_PRIMARY]: {
         type: "float_zoomed",
+        percentage: 100,
         floats: [
           { type: "pinned", application: "TestApp", percentage: 100 },
         ],
         layout: {
           type: "columns",
+          percentage: 100,
           columns: [
             { type: "stack", percentage: 50 },
             { type: "empty", percentage: 50 },
@@ -570,7 +584,7 @@ describe('moveApplicationTo', () => {
       focusedWindow: {...WINDOWS[0]}
     }
 
-    await windowManager.moveApplicationTo(SCREEN_PRIMARY, null, [1]);
+    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp", null, [1]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [SCREEN_PRIMARY]: {
@@ -579,11 +593,189 @@ describe('moveApplicationTo', () => {
         zoomed: [],
         layout: {
           type: "columns",
+          percentage: 100,
           columns: [
             { type: "stack", percentage: 50 },
             { type: "pinned", application: "TestApp", percentage: 50 },
           ]
         }
+      }
+    });
+  });
+
+});
+
+describe('moving windows', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should move window from stack to pinned by title', async () => {
+    const windowManager = createWM();
+    await windowManager.start();
+    await windowManager.setLayout({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 50 },
+          { type: "empty", percentage: 50 },
+        ]
+      }
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp",
+      pid: 1,
+      bundleId: "com.test.app",
+      windows: [
+        {...WINDOWS[0]}
+      ],
+      focusedWindow: {...WINDOWS[0]}
+    }
+
+    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp", WINDOWS[0].title, [1]);
+
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 50 },
+          { type: "pinned", application: "TestApp", title: "Test Window", percentage: 50 }
+        ]
+      }
+    });
+  });
+
+  it('should move window from pinned to stack by title', async () => {
+    const windowManager = createWM();
+    await windowManager.start();
+    await windowManager.setLayout({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 50 },
+          { type: "pinned", application: "TestApp", title: "Test Window", percentage: 50 },
+        ]
+      }
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp",
+      pid: 1,
+      bundleId: "com.test.app",
+      windows: [
+        {...WINDOWS[0]}
+      ],
+      focusedWindow: {...WINDOWS[0]}
+    }
+
+    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp", WINDOWS[0].title, [0]);
+
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 50 },
+          { type: "empty", percentage: 50 }
+        ]
+      }
+    });
+  });
+
+  it('should move 2 windows from stack to pinned by title', async () => {
+    const windowManager = createWM();
+    await windowManager.start();
+    await windowManager.setLayout({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 33 },
+          { type: "empty", percentage: 33 },
+          { type: "empty", percentage: 33 },
+        ]
+      }
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp 4",
+      pid: 4,
+      bundleId: "com.test.app.4",
+      windows: [
+        {...WINDOWS[3]},
+        {...WINDOWS[4]},
+      ],
+      focusedWindow: {...WINDOWS[4]}
+    }
+
+    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp 4", WINDOWS[3].title, [1]);
+    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp 5", WINDOWS[4].title, [2]);
+
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 33 },
+          { type: "pinned", application: "TestApp 4", title: "Test Window 4", percentage: 33 },
+          { type: "pinned", application: "TestApp 4", title: "Test Window 5", percentage: 33 },
+        ]
+      }
+    });
+  });
+
+  it('should move window from pinned to pinned on another monitor by title', async () => {
+    const windowManager = createWM();
+    await windowManager.start();
+    await windowManager.setLayout({
+      [MAIN_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 50 },
+          { type: "pinned", application: "TestApp", title: "Test Window", percentage: 50 },
+        ]
+      },
+      [SECONDARY_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "empty", percentage: 100 },
+        ]
+      }
+    });
+    windowManager['currentApplication'] = {
+      name: "TestApp",
+      pid: 1,
+      bundleId: "com.test.app",
+      windows: [
+        {...WINDOWS[0]}
+      ],
+      focusedWindow: {...WINDOWS[0]}
+    }
+
+    await windowManager.moveTo(SECONDARY_MONITOR.name, "TestApp", WINDOWS[0].title, [0]);
+
+    expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
+      [MAIN_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "stack", percentage: 50 },
+          { type: "empty", percentage: 50 }
+        ]
+      },
+      [SECONDARY_MONITOR.name]: {
+        type: "columns",
+        percentage: 100,
+        columns: [
+          { type: "pinned", application: "TestApp", title: "Test Window", percentage: 100 }
+        ]
       }
     });
   });

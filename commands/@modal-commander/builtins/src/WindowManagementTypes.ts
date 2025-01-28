@@ -22,7 +22,7 @@ export const Window = z.object({
 
 const BaseLayout = z.object({
   type: LayoutType,
-  percentage: z.number().optional(),
+  percentage: z.number(),
   attachment: z.any().optional(),
 });
 
@@ -39,6 +39,7 @@ export const PinnedLayout = BaseLayout.extend({
   type: z.literal("pinned"),
   application: z.string(),
   title: z.string().optional(),
+  id: z.number().optional(),
   computed: z.array(Window).optional(),
 });
 

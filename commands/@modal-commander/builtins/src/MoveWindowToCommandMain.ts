@@ -17,10 +17,30 @@ export class MoveWindowToCommandMain {
   async handle(message: any) {
     const state = this.windowManager?.getState();
     if (message.type === "moveWindowTo") {
+      if (!state) {
+        log.warn("No state");
+        return;
+      }
+
+      const currentApplication = state?.currentApplication;
+      if (!currentApplication) {
+        log.warn("No current application");
+        return;
+      }
+
       if (message.source === "app") {
-        await this.windowManager?.moveApplicationTo(message.monitor, message.destination);
+        await this.windowManager?.moveTo(message.monitor, currentApplication.name, null, message.destination);
       } else if (message.source === "window") {
-        await this.windowManager?.moveWindowTo(message.windowId, message.destination);
+        if (currentApplication.focusedWindow) {
+          await this.windowManager?.moveTo(
+            message.monitor, 
+            currentApplication.name, 
+            currentApplication.focusedWindow.id, 
+            message.destination
+          );
+        } else {
+          log.warn("No focused window");
+        }
       }
     }
     return {
