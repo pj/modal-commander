@@ -16,6 +16,13 @@ export class MoveWindowToCommandMain {
 
   async handle(message: any) {
     const state = this.windowManager?.getState();
+    if (message.type === "moveWindowTo") {
+      if (message.source === "app") {
+        await this.windowManager?.moveApplicationTo(message.monitor, message.destination);
+      } else if (message.source === "window") {
+        await this.windowManager?.moveWindowTo(message.windowId, message.destination);
+      }
+    }
     return {
       ...state
     }

@@ -231,13 +231,13 @@ export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
             sendInvoke({
                 command: '@modal-commander/builtins#MoveWindowToCommand',
                 type: 'moveWindowTo',
+                monitor: monitor?.name,
                 destination: destination,
                 source: props.source
-            })
+            }).then(
+                () => sendMessage({ command: "hide" })
+            );
         }
-        // .then(
-        //     // () => sendMessage({ command: "hide" })
-        // );
 
         return;
     }

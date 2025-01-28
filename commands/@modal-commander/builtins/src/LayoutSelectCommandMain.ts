@@ -61,7 +61,11 @@ export class LayoutSelectCommandMain {
           const matchingLayout = findMatchingScreenSet(layout, this.windowManager?.getState().monitors || []);
           if (matchingLayout) {
             await this.windowManager?.setLayout(matchingLayout);
+          } else {
+            log.warn(`No matching layout found for ${message.quickKey}`);
           }
+        } else {
+          log.warn(`Layout ${message.quickKey} not found`);
         }
         break;
     }

@@ -115,6 +115,140 @@ export class WindowManager {
     await this.reconcileLayout();
   }
 
+  private moveApplication(
+    layout: Layout,
+    application: string,
+    destination: number[] | null
+  ): boolean {
+    if (layout.type === "columns") {
+      const newColumns: Layout[] = [];
+      let dest: number | null = null;
+      let rest: number[] | null = null;
+      if (destination) {
+        [dest, ...rest] = destination;
+      }
+      for (let i = 0; i < layout.columns.length; i++) {
+        const column = layout.columns[i];
+        if (i === dest) {
+          if (column.type !== "stack") {
+            newColumns.push({
+              type: "pinned",
+              application,
+              percentage: column.percentage
+            });
+          } else {
+            newColumns.push(column);
+          }
+        } else {
+          const pinned = this.moveApplication(column, application, rest);
+          if (pinned) {
+            newColumns.push({
+              type: "empty",
+              percentage: column.percentage
+            });
+          } else {
+            newColumns.push(column);
+          }
+        }
+      }
+      layout.columns = newColumns;
+    } else if (layout.type === "rows") {
+      const newRows: Layout[] = [];
+      let dest: number | null = null;
+      let rest: number[] | null = null;
+      if (destination) {
+        [dest, ...rest] = destination;
+      }
+      for (let i = 0; i < layout.rows.length; i++) {
+        const row = layout.rows[i];
+        if (i === dest) {
+          if (row.type !== "stack") {
+            newRows.push({
+              type: "pinned",
+              application,
+              percentage: row.percentage
+            });
+          } else {
+            newRows.push(row);
+          }
+        } else {
+          const pinned = this.moveApplication(row, application, rest);
+          if (pinned) {
+            newRows.push({
+              type: "empty",
+              percentage: row.percentage
+            });
+          } else {
+            newRows.push(row);
+          }
+        }
+      }
+      layout.rows = newRows;
+    } else if (layout.type === "float_zoomed") {
+      const pinned = this.moveApplication(layout.layout, application, destination);
+      if (pinned) {
+        layout.layout = {
+          type: "empty",
+          percentage: layout.layout.percentage
+        };
+      }
+
+      layout.floats = layout.floats?.filter(float => float.application !== application) || [];
+      layout.zoomed = layout.zoomed?.filter(zoomed => zoomed.application !== application) || [];
+    } else if (layout.type === "pinned") {
+      if (layout.application === application) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private moveApplicationToMonitor(
+    screenSet: ScreenConfig,
+    application: string,
+    destinationMonitor: string,
+    destination: number[]
+  ): void {
+    for (const [monitorName, monitorLayout] of Object.entries(screenSet)) {
+      const applicationDestination = monitorName === destinationMonitor ? destination : null;
+      const found = this.moveApplication(monitorLayout, application, applicationDestination);
+      if (found) {
+        screenSet[monitorName] = {
+          type: "empty",
+          percentage: monitorLayout.percentage
+        };
+      }
+
+      if (applicationDestination && applicationDestination.length === 0) {
+        screenSet[monitorName] = {
+          type: "pinned",
+          application,
+          percentage: monitorLayout.percentage
+        };
+      }
+    }
+  }
+
+  public async moveApplicationTo(monitor: string, destination: number[]) {
+    if (!this.currentLayout) {
+      log.warn(`No current layout`);
+      return;
+    }
+
+    if (!this.currentApplication) {
+      log.warn(`No current application`);
+      return;
+    }
+
+    let application = this.currentApplication.name;
+
+    this.moveApplicationToMonitor(this.currentLayout, application, monitor, destination);
+    await this.reconcileLayout();
+  }
+
+  public async moveWindowTo(windowId: number, destination: number[]) {
+  }
+
   // Reconciling the layout
   private async setWindowBounds(window: Window, bounds: Bounds) {
     let cached = this.windowCache.get(window.id);
@@ -122,7 +256,6 @@ export class WindowManager {
       log.warn(`Window ${window.id} not found in cache`);
       return;
     }
-    cached.bounds = bounds;
 
     if (
       cached?.bounds.x !== bounds.x
@@ -130,6 +263,7 @@ export class WindowManager {
       || cached?.bounds.width !== bounds.width
       || cached?.bounds.height !== bounds.height
     ) {
+      cached.bounds = bounds;
       setTimeout(() => {
         this.native.setWindowBounds(window.id, bounds);
       }, 10);
