@@ -289,4 +289,203 @@ describe('WindowManager', () => {
       }
     }
   });
+});
+
+describe('moveApplicationTo', () => {
+  let windowManager: WindowManager;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+
+    mockWindowFunctions.windows = [...WINDOWS];
+    mockWindowFunctions.monitors = [MAIN_MONITOR, SECONDARY_MONITOR];
+    windowManager = new WindowManager();
+  });
+
+  afterEach(() => {
+    windowManager.stop();
+    vi.restoreAllMocks();
+  });
+
+  it('should move application from stack to pinned', async () => {
+    await windowManager.start();
+    await windowManager.setLayout({
+      [SCREEN_PRIMARY]: {
+        type: "columns",
+        columns: [
+          { type: "stack", percentage: 50 },
+          { type: "empty", percentage: 50 },
+        ]
+      }
+    });
+
+    await windowManager.moveApplicationTo("TestApp", [1]);
+
+    expect(windowManager.getState().currentLayout).toEqual({
+      type: "columns",
+      columns: [
+        { type: "empty", percentage: 50 },
+        { type: "pinned", application: "TestApp", percentage: 50 }
+      ]
+    });
+  });
+
+  // it('should move application from stack to nested layout', async () => {
+  //   const manager = new WindowManager();
+  //   await manager.setLayout({
+  //     type: "columns",
+  //     columns: [
+  //       { 
+  //         type: "rows",
+  //         percentage: 50,
+  //         rows: [
+  //           { type: "stack", percentage: 50 },
+  //           { type: "stack", percentage: 50 }
+  //         ]
+  //       },
+  //       { type: "pinned", application: "App1", percentage: 50 }
+  //     ]
+  //   });
+
+  //   await manager.moveApplicationTo("App1", [0, 1]);
+
+  //   expect(manager.getState().currentLayout).toEqual({
+  //     type: "columns",
+  //     columns: [
+  //       { 
+  //         type: "rows",
+  //         percentage: 50,
+  //         rows: [
+  //           { type: "stack", percentage: 50 },
+  //           { type: "pinned", application: "App1", percentage: 50 }
+  //         ]
+  //       },
+  //       { type: "empty", percentage: 50 }
+  //     ]
+  //   });
+  // });
+
+  // it('should handle float_zoomed layouts', async () => {
+  //   const manager = new WindowManager();
+  //   await manager.setLayout({
+  //     type: "float_zoomed",
+  //     layout: {
+  //       type: "columns",
+  //       columns: [
+  //         { type: "pinned", application: "App1", percentage: 50 },
+  //         { type: "stack", percentage: 50 }
+  //       ]
+  //     },
+  //     floats: [],
+  //     zoomed: []
+  //   });
+
+  //   await manager.moveApplicationTo("App1", [0, 1]);
+
+  //   expect(manager.getState().currentLayout).toEqual({
+  //     type: "float_zoomed",
+  //     layout: {
+  //       type: "columns",
+  //       columns: [
+  //         { type: "empty", percentage: 50 },
+  //         { type: "pinned", application: "App1", percentage: 50 }
+  //       ]
+  //     },
+  //     floats: [],
+  //     zoomed: []
+  //   });
+  // });
+
+  // it('should handle multiple monitors', async () => {
+  //   const manager = new WindowManager();
+  //   const monitors = [
+  //     { name: "Primary", bounds: { x: 0, y: 0, width: 1920, height: 1080 }, main: true },
+  //     { name: "Secondary", bounds: { x: 1920, y: 0, width: 1920, height: 1080 }, main: false }
+  //   ];
+  //   manager.setMonitors(monitors);
+
+  //   await manager.setLayout({
+  //     type: "columns",
+  //     columns: [
+  //       { type: "pinned", application: "App1", percentage: 100 }
+  //     ]
+  //   });
+
+  //   await manager.moveApplicationTo("App1", [0]);
+
+  //   expect(manager.getState().currentLayout).toEqual({
+  //     type: "columns",
+  //     columns: [
+  //       { type: "pinned", application: "App1", percentage: 100 }
+  //     ]
+  //   });
+  // });
+
+  // it('should handle deeply nested layouts', async () => {
+  //   const manager = new WindowManager();
+  //   await manager.setLayout({
+  //     type: "columns",
+  //     columns: [
+  //       {
+  //         type: "rows",
+  //         percentage: 50,
+  //         rows: [
+  //           {
+  //             type: "columns",
+  //             percentage: 50,
+  //             columns: [
+  //               { type: "pinned", application: "App1", percentage: 50 },
+  //               { type: "stack", percentage: 50 }
+  //             ]
+  //           },
+  //           { type: "stack", percentage: 50 }
+  //         ]
+  //       },
+  //       { type: "stack", percentage: 50 }
+  //     ]
+  //   });
+
+  //   await manager.moveApplicationTo("App1", [1]);
+
+  //   expect(manager.getState().currentLayout).toEqual({
+  //     type: "columns",
+  //     columns: [
+  //       {
+  //         type: "rows",
+  //         percentage: 50,
+  //         rows: [
+  //           {
+  //             type: "columns",
+  //             percentage: 50,
+  //             columns: [
+  //               { type: "empty", percentage: 50 },
+  //               { type: "stack", percentage: 50 }
+  //             ]
+  //           },
+  //           { type: "stack", percentage: 50 }
+  //         ]
+  //       },
+  //       { type: "pinned", application: "App1", percentage: 50 }
+  //     ]
+  //   });
+  // });
+
+  // it('should preserve computed windows when moving', async () => {
+  //   const manager = new WindowManager();
+  //   const window = { id: 1, application: "App1", bounds: { x: 0, y: 0, width: 100, height: 100 } };
+  //   manager.setWindows([window]);
+
+  //   await manager.setLayout({
+  //     type: "columns",
+  //     columns: [
+  //       { type: "pinned", application: "App1", percentage: 50, computed: [window] },
+  //       { type: "stack", percentage: 50 }
+  //     ]
+  //   });
+
+  //   await manager.moveApplicationTo("App1", [1]);
+
+  //   const newLayout = manager.getState().currentLayout;
+  //   expect(newLayout.columns[1].computed).toContainEqual(window);
+  // });
 }); 

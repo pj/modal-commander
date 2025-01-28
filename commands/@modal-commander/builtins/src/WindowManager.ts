@@ -466,7 +466,6 @@ export class WindowManager {
       }
     } finally {
       this.reconciling = false;
-
     }
   }
 

@@ -16,7 +16,8 @@
     "build:watch": "npm run clean && concurrently \"npm run build:watch:main\" \"npm run build:watch:renderer\"",
     "build:native": "node-gyp configure build && npm run copy-binary",
     "copy-binary": "mkdir -p dist && cp build/Release/*.node dist/",
-    "site-blocker-test": "tsx src/site_blocker_test_script.ts"
+    "site-blocker-test": "tsx src/site_blocker_test_script.ts",
+    "test": "vitest"
   },
   "dependencies": {
     "node-addon-api": "^8.3.0",
@@ -30,6 +31,7 @@
     "@vitejs/plugin-react": "^4.0.0",
     "concurrently": "^9.1.2",
     "tsx": "^4.19.2",
-    "vite": "^4.0.0"
+    "vite": "^6.0.11",
+    "vitest": "^3.0.4"
   }
 }

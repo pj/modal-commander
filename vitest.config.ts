@@ -7,5 +7,6 @@ export default defineConfig({
     testTimeout: 1000 * 29,
     environment: 'node',
     mockReset: true,
+    exclude: ['**/node_modules/**', '**/dist/**', '**/dist-electron/**', '**/release/**'],
   },
 })
