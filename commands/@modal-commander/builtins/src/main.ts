@@ -5,6 +5,7 @@ import { SiteBlockerMain } from "./SiteBlockerMain";
 import { VolumeCommandMain } from "./VolumeCommandMain";
 import { LayoutSelectCommandMain } from "./LayoutSelectCommandMain";
 import { MoveWindowToCommandMain } from "./MoveWindowToCommandMain";
+import { ApplicationSwitchCommandMain } from "./ApplicationSwitchCommandMain";
 
 export default {
     TextCommand: TextCommandMain,
@@ -13,5 +14,6 @@ export default {
     SiteBlockerCommand: SiteBlockerMain,
     VolumeCommand: VolumeCommandMain,
     LayoutSelectCommand: LayoutSelectCommandMain,
-    MoveWindowToCommand: MoveWindowToCommandMain
+    MoveWindowToCommand: MoveWindowToCommandMain,
+    ApplicationSwitchCommand: ApplicationSwitchCommandMain
 }

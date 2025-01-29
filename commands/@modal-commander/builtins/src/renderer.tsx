@@ -5,6 +5,7 @@ import { TextCommand } from "./TextCommand";
 import { VolumeCommand } from "./VolumeCommand";
 import { LayoutSelectCommand } from "./LayoutSelectCommand";
 import { MoveWindowToCommand } from "./MoveWindowToCommand";
+import { ApplicationSwitchCommand } from "./ApplicationSwitchCommand";
 export const components = {
     TextCommand: TextCommand,
     LockCommand: LockCommand,
@@ -12,5 +13,6 @@ export const components = {
     SiteBlockerCommand: SiteBlockerCommand,
     VolumeCommand: VolumeCommand,
     LayoutSelectCommand: LayoutSelectCommand,
-    MoveWindowToCommand: MoveWindowToCommand
+    MoveWindowToCommand: MoveWindowToCommand,
+    ApplicationSwitchCommand: ApplicationSwitchCommand
 }
