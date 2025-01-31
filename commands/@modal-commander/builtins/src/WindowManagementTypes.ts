@@ -29,6 +29,8 @@ const BaseLayout = z.object({
 export const StackLayout = BaseLayout.extend({
   type: z.literal("stack"),
   computed: z.array(Window).optional(),
+  // Windows that are specifically stacked on this layout, otherwise they are stacked on the main screen.
+  windows: z.lazy((): any => z.array(PinnedLayout) as any),
 });
 
 export const EmptyLayout = BaseLayout.extend({

@@ -591,6 +591,7 @@ describe('moveApplicationTo', () => {
         type: "float_zoomed",
         floats: [],
         zoomed: [],
+        percentage: 100,
         layout: {
           type: "columns",
           percentage: 100,
@@ -714,7 +715,7 @@ describe('moving windows', () => {
     }
 
     await windowManager.moveTo(SCREEN_PRIMARY, "TestApp 4", WINDOWS[3].title, [1]);
-    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp 5", WINDOWS[4].title, [2]);
+    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp 4", WINDOWS[4].title, [2]);
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [SCREEN_PRIMARY]: {

@@ -11,8 +11,11 @@ export default {
   theme: {
     extend: {},
   },
-  corePlugins: {
-    preflight: false,
-  },
+//   corePlugins: {
+//     preflight: false,
+//   },
   plugins: [daisyui],
+  daisyui: {
+    themes: ["light"],
+  },
 }

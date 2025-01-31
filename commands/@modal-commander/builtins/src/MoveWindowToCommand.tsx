@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from "react"
 import { CommandWrapper, DefaultCommandProps } from "./CommandWrapper"
-import { LayoutNode, RenderOptions } from "./RootLayout"
+import { LayoutNode, RenderOptions, RenderScreenSet } from "./RootLayout"
 import { Application, Bounds, FrontendState, Layout, Monitor, SCREEN_PRIMARY, ScreenConfig } from "./WindowManagementTypes"
 import { Key } from "./Key"
 import log from "electron-log"
@@ -14,7 +14,7 @@ function processLayout(
     layout: Layout<RenderOptions>,
     source: MoveSource,
     currentApplication: Application,
-    index: number
+    counter: {count: number}
 ): Layout<RenderOptions> {
     const nextLayout: Layout<RenderOptions> = {
         ...layout
@@ -22,14 +22,14 @@ function processLayout(
     if (nextLayout.type === "columns") {
         let columns: Layout<RenderOptions>[] = [];
         for (const column of nextLayout.columns) {
-            columns.push(processLayout(column, source, currentApplication, index++));
+            columns.push(processLayout(column, source, currentApplication, counter));
         }
         nextLayout.columns = columns;
         return nextLayout;
     } else if (nextLayout.type === "rows") {
         let rows: Layout<RenderOptions>[] = [];
         for (const row of nextLayout.rows) {
-            rows.push(processLayout(row, source, currentApplication, index++));
+            rows.push(processLayout(row, source, currentApplication, counter));
         }
         nextLayout.rows = rows;
         return nextLayout;
@@ -63,15 +63,16 @@ function processLayout(
                 }
             }
             nextLayout.attachment = {
-                index: index,
+                index: counter.count,
                 selected: selected,
                 render: (
                     <>
-                        <Key text={index.toString()}/> 
+                        <Key text={counter.count.toString()}/> 
                         {render}
                     </>
                 )
             }
+            counter.count++;
         }
         return nextLayout;
     } else if (nextLayout.type === "pinned") {
@@ -101,32 +102,54 @@ function processLayout(
                 render = nextLayout.title
             }
             nextLayout.attachment = {
-                index: index,
+                index: counter.count,
                 selected: selected,
                 render: (
                     <>
-                        <Key text={index.toString()}/> 
+                        <Key text={counter.count.toString()}/> 
                         {render}
                     </>
                 )
             }
+            counter.count++;
         }
         return nextLayout;
     }
     else if (nextLayout.type === "empty") {
         nextLayout.attachment = {
-            index: index,
+            index: counter.count,
             selected: false,
             render: (
                 <>
-                    <Key text={index.toString()}/> 
+                    <Key text={counter.count.toString()}/> 
                     Empty
                 </>
             )
         }
+        counter.count++;
         return nextLayout;
     }
     return nextLayout;
+}
+
+function processScreenConfig(
+    screenConfig: ScreenConfig,
+    source: MoveSource,
+    currentApplication: Application,
+): ScreenConfig {
+    const nextScreenConfig: ScreenConfig = {};
+
+    const counter = {count: 0};
+
+    for (const [monitorName, layout] of Object.entries(screenConfig)) {
+        nextScreenConfig[monitorName] = processLayout(
+            layout, 
+            source, 
+            currentApplication, 
+            counter
+        );
+    }
+    return nextScreenConfig;
 }
 
 function getDestination(layout: Layout<RenderOptions>, index: string): number[] | null {
@@ -196,52 +219,56 @@ export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
         }
     }, []);
 
-    let bounds: Bounds | null = null
-    let layout: Layout<RenderOptions> | null = null
-    const monitor = windowManagementState?.monitors[0]
-    let currentApplication: Application | null = null
+    let monitors: Monitor[] | null = null;
+    let screenConfig: ScreenConfig | null = null;
     let headerText = "Move Window To"
-    if (monitor) {
-        bounds = monitor.bounds
-        if (monitor.main && windowManagementState?.currentLayout?.[SCREEN_PRIMARY]) {
-            layout = windowManagementState?.currentLayout?.[SCREEN_PRIMARY]
-        } else {
-            layout = windowManagementState?.currentLayout?.[monitor.name] || null
-        }
-        currentApplication = windowManagementState?.currentApplication || null;
-        if (layout && currentApplication) {
-            layout = processLayout(layout, props.source, currentApplication, 0);
-            if (props.source === "app") {
-                headerText = `Move ${currentApplication?.name} To`
-            } else if (props.source === "window") {
-                headerText = `Move ${currentApplication?.focusedWindow?.title} To`
-            } else {
-                const window = windowManagementState?.windows.find(window => window.id === props.source);
-                if (window) {
-                    headerText = `Move ${window.title} To`
+    if (windowManagementState) {
+        monitors = windowManagementState.monitors;
+        if (windowManagementState.currentLayout) {
+            screenConfig = windowManagementState.currentLayout;
+            const currentApplication = windowManagementState.currentApplication;
+            if (currentApplication) {
+                screenConfig = processScreenConfig(screenConfig, props.source, currentApplication);
+                if (props.source === "app") {
+                    headerText = `Move ${currentApplication?.name} To`
+                } else if (props.source === "window") {
+                    headerText = `Move ${currentApplication?.focusedWindow?.title} To`
+                } else {
+                    const window = windowManagementState.windows.find(window => window.id === props.source);
+                    if (window) {
+                        headerText = `Move ${window.title} To`
+                    }
                 }
             }
         }
     }
-    console.log("--------------------------------")
-    console.log("windowManagementState", windowManagementState)
-    console.log("monitor", monitor)
-    console.log("layout", layout)
-    console.log("currentApplication", currentApplication)
-    console.log("bounds", bounds)
+    // console.log("--------------------------------")
+    // console.log("windowManagementState", windowManagementState)
+    // console.log("monitor", monitor)
+    // console.log("layout", layout)
+    // console.log("currentApplication", currentApplication)
+    // console.log("bounds", bounds)
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (!layout) {
+        if (!screenConfig) {
             log.warn("No layout found");
             return;
         }
         const index = event.key
-        const destination = getDestination(layout, index);
+        let destination: number[] | null = null;
+        let destinationMonitor: string | null = null;
+        for (const [monitorName, layout] of Object.entries(screenConfig)) {
+            destination = getDestination(layout, index);
+            if (destination) {
+                destinationMonitor = monitorName;
+                break;
+            }
+        }
         if (destination) {
             sendInvoke({
                 command: '@modal-commander/builtins#MoveWindowToCommand',
                 type: 'moveWindowTo',
-                monitor: monitor?.name,
+                monitor: destinationMonitor,
                 destination: destination,
                 source: props.source
             }).then(
@@ -252,7 +279,6 @@ export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
         return;
     }
 
-
     return (
         <CommandWrapper
             {...props}
@@ -260,17 +286,11 @@ export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
             testIdPrefix="move-window-to"
             headerText={headerText}
             inner={
-                layout && bounds && currentApplication ? (
-                    <div className="p-1 rounded-sm bg-black relative" style={{
-                        width: bounds.width * 0.2,
-                        height: bounds.height * 0.2
-                    }}>
-                        <LayoutNode
-                            layout={layout}
-                            frame={bounds}
-                            margin=""
-                        />
-                    </div>
+                monitors && screenConfig ? (
+                    <RenderScreenSet
+                        monitors={monitors}
+                        screenSet={screenConfig}
+                    />
                 ) : null
             }
         />

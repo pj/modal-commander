@@ -20,11 +20,6 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
         );
     }, [sendInvoke])
 
-    const updateWindowManagementState = useCallback((state: FrontendState) => {
-        setWindowManagementState(state)
-        sendInvoke({ command: '@modal-commander/builtins#LayoutSelectCommand', type: 'updateState', state: state })
-    }, [setWindowManagementState])
-
     const handleVisibilityChange = () => {
         if (!document.hidden) {
             getWindowManagementState()
@@ -56,6 +51,14 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
             }
         }
     }
+    const layouts = [];
+    if (windowManagementState) {
+        for (const layout of windowManagementState?.layouts || []) {
+            layouts.push(<RenderLayout key={layout.name} layout={layout} monitors={windowManagementState.monitors} />)
+        }
+    }
+    console.log(windowManagementState?.layouts);
+    console.log(layouts);
     return (
         <CommandWrapper
             {...props}
@@ -64,15 +67,8 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
             headerText="Layout Select"
             inner={
                 windowManagementState ? (
-                    <div className="flex flex-row divide-x *:px-2 first:*:pt-0 last:*:pb-0">
-                        {
-                            windowManagementState.layouts.map((layout) => (
-                                <RenderLayout
-                                    layout={layout}
-                                    monitors={windowManagementState.monitors}
-                                />
-                            ))
-                        }
+                    <div className="card-body flex flex-row divide-x *:p-2 first:*:pt-0 last:*:pb-0">
+                        {layouts}
                     </div>
                 ) : null
             }

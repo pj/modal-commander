@@ -1,5 +1,7 @@
+import log from "electron-log"
 import { Key } from "./Key"
 import { Bounds, Layout, Monitor, SCREEN_PRIMARY, WindowManagerLayout, ScreenConfig as BaseScreenConfig, ScreenConfig } from "./WindowManagementTypes"
+import { findMatchingScreenSet } from "./WindowManagerUtils"
 
 const columnCss = "rounded-md text-xs bg-white flex flex-col border border-gray-300"
 const columnStyle = { fontSize: "0.5rem" }
@@ -119,94 +121,83 @@ export function LayoutNode({ layout, frame, margin }: LayoutProps) {
 }
 
 export type RenderScreenSetProps = {
-    layout: WindowManagerLayout;
     monitors: Monitor[];
     screenSet: ScreenConfig;
 }
 
-export function RenderScreenSet({ layout, monitors, screenSet }: RenderScreenSetProps) {
-    let foundAllScreens = true;
-    for (const currentScreen of monitors) {
-        if (currentScreen.main && screenSet[SCREEN_PRIMARY]) {
-            continue
+export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
+    const screenNodes = [];
+    for (const [monitorName, layout] of Object.entries(screenSet)) {
+        const monitor = monitors.find(m => m.name === monitorName || (m.main && monitorName === SCREEN_PRIMARY));
+        if (!monitor) {
+            log.warn(`Unable to find monitor ${monitorName} for screen set ${JSON.stringify(screenSet)}`);
+            continue;
         }
-        if (screenSet[currentScreen.name]) {
-            continue
-        }
-        foundAllScreens = false;
-        break;
+        screenNodes.push(
+            <div key={monitorName} className="p-1 rounded-sm bg-black relative" style={{
+                width: monitor.bounds.width * 0.1,
+                height: monitor.bounds.height * 0.1,
+                left: monitor.bounds.x * 0.1,
+                top: monitor.bounds.y * 0.1,
+                position: "relative"
+            }}>
+
+                <LayoutNode
+                    layout={layout}
+                    frame={monitor.bounds}
+                    margin=""
+                />
+            </div>
+        );
     }
-    if (foundAllScreens) {
-        let screenLayout = screenSet[monitors[0].name]
-        if (!screenLayout && monitors[0].main) {
-            screenLayout = screenSet[SCREEN_PRIMARY];
-        }
-        if (!screenLayout) {
-            return <div key={layout.name}>Unable to find matching screens for layout {layout.name}</div>
-        }
+    return (
+        <div>
+            {screenNodes}
+        </div>
+    );
+}
+
+// export type RenderLayoutScreenSetProps = {
+//     layout: WindowManagerLayout;
+//     monitors: Monitor[];
+//     screenSet: ScreenConfig;
+// }
+
+// export function RenderLayoutScreenSet({ layout, monitors, screenSet }: RenderLayoutScreenSetProps) {
+//     return (
+//         <div key={layout.name}>
+//             <div style={{ width: 160 }} className="flex flex-row items-center justify-center p-1 gap-1">
+//                 <Key text={layout.quickKey}></Key>
+//                 <div className="text-xs">{layout.name}</div>
+//             </div>
+//             <RenderScreenSet monitors={monitors} screenSet={screenSet} />
+//         </div>
+//     )
+// }
+
+export function RenderLayout({ layout, monitors }: RootLayoutProps) {
+    const screenSet = findMatchingScreenSet(layout, monitors);
+    if (screenSet) {
+        // return <RenderLayoutScreenSet key={layout.name} layout={layout} monitors={monitors} screenSet={screenSet} />
         return (
             <div key={layout.name}>
                 <div style={{ width: 160 }} className="flex flex-row items-center justify-center p-1 gap-1">
                     <Key text={layout.quickKey}></Key>
                     <div className="text-xs">{layout.name}</div>
                 </div>
-                <div className="p-1 rounded-sm bg-black relative" style={{
-                    width: monitors[0].bounds.width * 0.1,
-                    height: monitors[0].bounds.height * 0.1
-                }}>
-                    <LayoutNode layout={screenLayout} frame={monitors[0].bounds} margin="" />
-                </div>
+                <RenderScreenSet monitors={monitors} screenSet={screenSet} />
             </div>
         )
-    }
-}
-
-export function RenderLayout({ layout, monitors }: RootLayoutProps) {
-    for (const screenSet of layout.screenSets) {
-        return <RenderScreenSet layout={layout} monitors={monitors} screenSet={screenSet} />
-        // let foundAllScreens = true;
-        // for (const currentScreen of monitors) {
-        //     if (currentScreen.main && screenSet[SCREEN_PRIMARY]) {
-        //         continue
-        //     }
-        //     if (screenSet[currentScreen.name]) {
-        //         continue
-        //     }
-        //     foundAllScreens = false;
-        //     break;
-        // }
-        // if (foundAllScreens) {
-        //     let screenLayout = screenSet[monitors[0].name]
-        //     if (!screenLayout && monitors[0].main) {
-        //         screenLayout = screenSet[SCREEN_PRIMARY];
-        //     }
-        //     if (!screenLayout) {
-        //         return <div key={layout.name}>Unable to find matching screens for layout {layout.name}</div>
-        //     }
-        //     return (
-        //         <div key={layout.name}>
-        //             <div style={{ width: 160 }} className="flex flex-row items-center justify-center p-1 gap-1">
-        //                 <Key text={layout.quickKey}></Key>
-        //                 <div className="text-xs">{layout.name}</div>
-        //             </div>
-        //             <div className="p-1 rounded-sm bg-black relative" style={{ 
-        //                 width: monitors[0].bounds.width * 0.1,
-        //                 height: monitors[0].bounds.height * 0.1
-        //             }}>
-        //                 <LayoutNode layout={screenLayout} frame={monitors[0].bounds} margin="" />
-        //     </div>
-        //         </div>
-        //     )
-        // }
-    }
-
-    return (
-        <div key={layout.name}>
-            <div
-                style={{ width: 160 }}
-                className="flex flex-row items-center justify-center p-1 gap-1">
-                Unable to find matching screens for layout {layout.name}
+    } else {
+        return (
+            <div key={layout.name}>
+                <div
+                    style={{ width: 160 }}
+                    className="flex flex-row items-center justify-center p-1 gap-1">
+                    Unable to find matching screens for layout {layout.name}
+                </div>
             </div>
-        </div>
-    );
+        );
+    }
+
 } 

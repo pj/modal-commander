@@ -1,33 +1,7 @@
 import log from 'electron-log';
 import { getInstance, WindowManager } from './WindowManager';
 import { Layout, Monitor, SCREEN_PRIMARY, ScreenConfig, WindowManagerLayout } from "./WindowManagementTypes";
-
-function findMatchingScreenSet(layout: WindowManagerLayout, monitors: Monitor[]): ScreenConfig | null {
-  for (const screenSet of layout.screenSets) {
-    let foundAllScreens = true;
-    for (const screen of Object.keys(screenSet)) {
-      let foundScreen = false;
-      for (const monitor of monitors) {
-        if (screen === SCREEN_PRIMARY && monitor.main) {
-          foundScreen = true;
-          break;
-        }
-        if (screen === monitor.name) {
-          foundScreen = true;
-          break;
-        }
-      }
-      if (!foundScreen) {
-        foundAllScreens = false;
-        break;
-      }
-    }
-    if (foundAllScreens) {
-      return screenSet;
-    }
-  }
-  return null;
-}
+import { findMatchingScreenSet } from './WindowManagerUtils';
 
 export class LayoutSelectCommandMain {
   private config: any;
@@ -44,7 +18,9 @@ export class LayoutSelectCommandMain {
     const monitors = await this.windowManager.getMonitors();
     const matchingLayout = findMatchingScreenSet(layout, monitors);
     if (matchingLayout) {
-      this.windowManager.setLayout(matchingLayout);
+      console.log("Initial layout", this.config.defaultLayout, matchingLayout);
+      const layoutCopy = JSON.parse(JSON.stringify(matchingLayout));
+      this.windowManager.setLayout(layoutCopy);
     }
   }
 
@@ -60,7 +36,8 @@ export class LayoutSelectCommandMain {
         if (layout) {
           const matchingLayout = findMatchingScreenSet(layout, this.windowManager?.getState().monitors || []);
           if (matchingLayout) {
-            await this.windowManager?.setLayout(matchingLayout);
+            const layoutCopy = JSON.parse(JSON.stringify(matchingLayout));
+            await this.windowManager?.setLayout(layoutCopy);
           } else {
             log.warn(`No matching layout found for ${message.quickKey}`);
           }

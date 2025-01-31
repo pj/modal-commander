@@ -176,6 +176,26 @@ Napi::Value getWindows(const Napi::CallbackInfo& info) {
     return windowsArray;
 }
 
+// class SetWindowBoundsWorker : public Napi::AsyncWorker {
+//     int windowId;
+//     CGRect bounds;
+
+// public:
+//     SetWindowBoundsWorker(Napi::Function& callback, int windowId, CGRect bounds)
+//         : Napi::AsyncWorker(callback), windowId(windowId), bounds(bounds) {}
+
+//     void Execute() override {
+//         // Do the window manipulation work here
+//         printf("SetWindowBoundsWorker: Executing\n");
+//         // ... window bounds setting code ...
+//     }
+
+//     void OnOK() override {
+//         Napi::HandleScope scope(Env());
+//         Callback().Call({Env().Null()});
+//     }
+// };
+
 Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     
@@ -193,7 +213,7 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
         bounds.Get("width").As<Napi::Number>().DoubleValue(),
         bounds.Get("height").As<Napi::Number>().DoubleValue()
     );
-
+    
     // Get all windows
     CFArrayRef windowList = CGWindowListCopyWindowInfo(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
@@ -204,6 +224,7 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
     }
 
     CFIndex count = CFArrayGetCount(windowList);
+
     for (CFIndex i = 0; i < count; i++) {
         CFDictionaryRef window = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
         
@@ -223,7 +244,6 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
                     CFDictionaryRef ownerPID;
                     if (CFDictionaryGetValueIfPresent(window, kCGWindowOwnerPID, (const void**)&ownerPID)) {
                         CFNumberGetValue((CFNumberRef)ownerPID, kCFNumberIntType, &pid);
-                        
                         // Create an accessibility element for the application
                         app = AXUIElementCreateApplication(pid);
                         if (app) {
@@ -242,7 +262,7 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
                                     CFTypeRef positionValue = AXValueCreate((AXValueType)kAXValueCGPointType, static_cast<const void*>(&position));
                                     AXUIElementSetAttributeValue(windowRef, kAXPositionAttribute, positionValue);
                                     if (positionValue) CFRelease(positionValue);
-                                    
+
                                     // Set the size
                                     CGSize size = CGSizeMake(newBounds.size.width, newBounds.size.height);
                                     CFTypeRef sizeValue = AXValueCreate((AXValueType)kAXValueCGSizeType, static_cast<const void*>(&size));
@@ -263,6 +283,35 @@ Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
     CFRelease(windowList);
     return env.Null();
 }
+
+// New version using AsyncWorker
+// Napi::Value setWindowBounds(const Napi::CallbackInfo& info) {
+//     Napi::Env env = info.Env();
+    
+//     if (info.Length() < 2 || !info[0].IsNumber() || !info[1].IsObject()) {
+//         Napi::TypeError::New(env, "Expected window ID and bounds object").ThrowAsJavaScriptException();
+//         return env.Null();
+//     }
+    
+//     int targetWindowId = info[0].As<Napi::Number>().Int32Value();
+//     Napi::Object bounds = info[1].As<Napi::Object>();
+    
+//     CGRect newBounds = CGRectMake(
+//         bounds.Get("x").As<Napi::Number>().DoubleValue(),
+//         bounds.Get("y").As<Napi::Number>().DoubleValue(),
+//         bounds.Get("width").As<Napi::Number>().DoubleValue(),
+//         bounds.Get("height").As<Napi::Number>().DoubleValue()
+//     );
+
+//     Napi::Function callback = Napi::Function::New(env, [](const Napi::CallbackInfo& info) {
+//         return info.Env().Undefined();
+//     });
+
+//     auto* worker = new SetWindowBoundsWorker(callback, targetWindowId, newBounds);
+//     worker->Queue();
+    
+//     return env.Undefined();
+// }
 
 Napi::Value getFocusedApplication(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();

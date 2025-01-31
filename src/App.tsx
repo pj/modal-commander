@@ -146,7 +146,11 @@ function App({ debug }: AppProps) {
             <ModalCommanderContext.Provider value={{ appState, sendMessage, handleExit, sendInvoke }}>
                 {
                     appState.rootComponent ? (
-                        <div key={appState.cacheBusterKey} className="bg-gray-100 shadow-xl flex flex-row flex-nowrap justify-start space-x-2.5 items-stretch border border-gray-200 rounded-lg p-2.5 h-full">
+
+                        <div 
+                            key={appState.cacheBusterKey} 
+                            className="font-sans bg-gray-100 shadow-xl flex flex-row flex-nowrap justify-start space-x-2.5 items-stretch border border-gray-200 rounded-lg p-2.5 h-full"
+                        >
                             <appState.rootComponent index={0} {...appState.rootProps} />
                         </div>
                     ) : (

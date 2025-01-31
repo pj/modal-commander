@@ -45,9 +45,9 @@ export function ApplicationSwitchCommand(props: ApplicationSwitchCommandProps) {
             testIdPrefix="application-switch-command"
             headerText="Switch Application"
             inner={
-                <>
+                <div className="card-body">
                     {applicationList}
-                </>
+                </div>
             }
         />
     );

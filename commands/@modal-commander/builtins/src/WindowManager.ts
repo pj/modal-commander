@@ -12,6 +12,7 @@ import {
   StackLayout
 } from './WindowManagementTypes';
 import log from 'electron-log';
+import { C } from 'vitest/dist/chunks/reporters.0x019-V2';
 
 const require = createRequire(import.meta.url);
 
@@ -32,7 +33,7 @@ export class WindowManager {
   private applicationCache: Map<string, Map<number, Window>> = new Map();
   private screenCache: Map<string, Monitor> = new Map();
   // Map of window id to the monitor it is located at - windows not specifically located are sent to the primary screen
-  private locatedAtWindows: Map<number, string> = new Map();
+  // private locatedAtWindows: Map<number, string> = new Map();
   private currentLayout: ScreenConfig | null = null;
   private updateTimer: NodeJS.Timeout | null = null;
   private reconciling: boolean = false;
@@ -68,7 +69,7 @@ export class WindowManager {
         await this.updateCaches();
         await this.reconcileLayout();
         await this.checkFocus();
-      }, 
+      },
       500
     );
   }
@@ -104,6 +105,9 @@ export class WindowManager {
     this.applicationCache = new Map();
 
     for (const window of windows) {
+      if (window.title === "Electron") {
+        continue;
+      }
       this.windowCache.set(window.id, window);
 
       if (!this.applicationCache.has(window.application)) {
@@ -148,7 +152,6 @@ export class WindowManager {
         [dest, ...rest] = destination;
         ended = rest.length === 0;
       }
-      console.log("moveApplication columns", {layout, application, destination, dest, rest, ended})
       for (let i = 0; i < layout.columns.length; i++) {
         const column = layout.columns[i];
         if (i === dest && ended) {
@@ -179,7 +182,6 @@ export class WindowManager {
         [dest, ...rest] = destination;
         ended = rest.length === 0;
       }
-      console.log("moveApplication rows", {layout, application, destination, dest, rest, ended})
       for (let i = 0; i < layout.rows.length; i++) {
         const row = layout.rows[i];
         if (i === dest && ended) {
@@ -217,7 +219,6 @@ export class WindowManager {
       layout.floats = layout.floats?.filter(float => float.application !== application) || [];
       layout.zoomed = layout.zoomed?.filter(zoomed => zoomed.application !== application) || [];
     } else if (layout.type === "pinned") {
-      console.log("moveApplication pinned", {layout, application, destination})
       if (layout.application === application) {
         if (window) {
           if (typeof window === "string" && layout.title === window) {
@@ -241,7 +242,6 @@ export class WindowManager {
     destination: number[]
   ): void {
     for (const [monitorName, monitorLayout] of Object.entries(screenSet)) {
-      console.log("--------------------------------")
       let applicationDestination = monitorName === destinationMonitor ? destination : null;
       if (destinationMonitor === SCREEN_PRIMARY) {
         const primaryMonitor = Array.from(this.screenCache.values()).find(s => s.main);
@@ -257,7 +257,6 @@ export class WindowManager {
           }
         }
       }
-      console.log("moveApplicationToMonitor", {destinationMonitor, monitorName, destination, monitorLayout, application, window,applicationDestination})
       const found = this.moveApplicationOrWindow(monitorLayout, application, window, applicationDestination);
       if (found) {
         screenSet[monitorName] = {
@@ -278,12 +277,7 @@ export class WindowManager {
       return;
     }
 
-    console.log("================================================")
-    console.log("moveApplicationTo", application, monitor, window, destinationPath)
-
     this.moveApplicationToMonitor(this.currentLayout, application, window, monitor, destinationPath);
-    console.log("================================================")
-    console.log(this.currentLayout)
     await this.reconcileLayout();
   }
 
@@ -322,7 +316,7 @@ export class WindowManager {
         windows.push(...Array.from(app.values()));
       }
     } else {
-      console.log("no application found for", layout.application);
+      log.warn("no application found for", layout.application);
     }
     return windows;
   }
@@ -433,17 +427,41 @@ export class WindowManager {
       case "empty":
         break;
     }
-    // console.log('--------------------------------');
-    // console.log('layout', layout);
-    // console.log('stackLayout', stackLayout);
-    // console.log('stackLocation', stackLocation);
-    // console.log('nonStackedWindows', nonStackedWindows);
+
+    return [stackLayout, stackLocation, nonStackedWindows];
+  }
+
+  private async reconcileScreenStack(
+    screen: Monitor,
+    screenLayout: Layout
+  ): Promise<[Layout | null, Bounds | null, Set<number>]> {
+    const [stackLayout, stackLocation, nonStackedWindows] = await this.reconcileScreenLayout(
+      screen,
+      screen.bounds,
+      screenLayout
+    );
+    if (stackLayout && stackLocation) {
+      stackLayout.computed = [];
+      for (const pinned of stackLayout.windows || []) {
+        const found = this.findWindowsForLayout(pinned);
+        if (found) {
+          for (const window of found) {
+            stackLayout.computed?.push(window);
+            await this.setWindowBounds(window, stackLocation);
+          }
+        }
+      }
+    } else {
+      // log.warn(`No stack location found for screen ${screen.name}`);
+    }
 
     return [stackLayout, stackLocation, nonStackedWindows];
   }
 
   private async reconcileScreenSet(screenSet: ScreenConfig) {
-    // Handle regular layout
+    let mainScreen = null;
+    let mainScreenLayout = null;
+    let nonStackedWindows: Set<number> = new Set<number>();
     for (const [screenName, screenLayout] of Object.entries(screenSet)) {
       const screen = screenName === SCREEN_PRIMARY
         ? Array.from(this.screenCache.values()).find(s => s.main)
@@ -453,26 +471,47 @@ export class WindowManager {
         log.warn(`No screen found for ${screenName}`);
         continue;
       }
+      if (screen.main) {
+        mainScreen = screen;
+        mainScreenLayout = screenLayout;
+        continue;
+      }
+      const [_, __, x] = await this.reconcileScreenStack(screen, screenLayout);
+      for (const window of x) {
+        nonStackedWindows.add(window);
+      }
+    }
 
-      const [stackLayout, stackLocation, nonStackedWindows] = await this.reconcileScreenLayout(screen, screen.bounds, screenLayout);
-      if (stackLayout && stackLocation) {
-        stackLayout.computed = [];
-        for (const window of this.windowCache.values()) {
-          if (
-            !nonStackedWindows.has(window.id)
-            && (
-              (!this.locatedAtWindows.has(window.id) && screen.main)
-              || this.locatedAtWindows.get(window.id) === screen.name
-            )
-          ) {
-            // log.silly('setting window bounds', window.id, stackLocation)
+    // Layout main screen last, as all non pinned/located windows are stacked on it
+    if (mainScreen && mainScreenLayout) {
+      const [stackLayout, stackLocation, x] = await this.reconcileScreenStack(mainScreen, mainScreenLayout);
+      if (!stackLayout) {
+        log.warn('No stack layout found for main screen');
+        return;
+      }
+      if (!x) {
+        log.warn('No non stacked windows found for main screen');
+        return;
+      }
+      if (!stackLocation) {
+        log.warn('No stack location found for main screen');
+        return;
+      }
+      for (const window of x) {
+        nonStackedWindows.add(window);
+      }
+
+      // Pin all windows that are not stacked on the main screen
+      for (const window of this.windowCache.values()) {
+        if (!nonStackedWindows.has(window.id)) {
+          if (stackLayout.type === "stack") {
             stackLayout.computed?.push(window);
             await this.setWindowBounds(window, stackLocation);
           }
         }
-      } else {
-        log.warn(`No stack location found for screen ${screenName}`);
       }
+    } else {
+      log.warn('No main screen found');
     }
   }
 
@@ -485,7 +524,10 @@ export class WindowManager {
 
       this.reconciling = true;
 
-      if (!this.currentLayout) return;
+      if (!this.currentLayout) {
+        log.warn('No layout to reconcile');
+        return;
+      }
 
       // Match monitors to the layout
       let allFound = true;

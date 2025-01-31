@@ -52,7 +52,6 @@ export class MoveWindowToCommandMain {
   }
 
   async onInvoke(message: any) {
-    log.info("MoveWindowToCommandMain onInvoke", message);
     return await this.handle(message);
   }
 } 

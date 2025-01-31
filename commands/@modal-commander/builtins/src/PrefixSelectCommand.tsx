@@ -30,9 +30,15 @@ export function PrefixSelectCommand(props: PrefixSelectCommandProps) {
     const prefixList = []
 
     for (const [prefix, { description }] of Object.entries(props.prefixes)) {
-        prefixList.push(<div key={prefix} className="flex flex-row items-center gap-2">
-            <Key key={prefix} text={prefix} /> <span className="text-md text-gray-600">{description}</span>
-        </div>)
+        let selectedCSS = ""
+        if (prefix === selectedKey) {
+            selectedCSS = "bg-gray-200 rounded-lg"
+        }
+        prefixList.push(
+            <div key={prefix} className={`flex flex-row items-center gap-2 ${selectedCSS}`}>
+                <Key key={prefix} text={prefix} /> <span className="text-md text-gray-600">{description}</span>
+            </div>
+        )
     }
 
     let selectedComponent = null

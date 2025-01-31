@@ -73,7 +73,7 @@ export function VolumeCommand(props: VolumeCommandProps) {
             headerText="Volume"
             inner={
                 volumeState ? (
-                    <>
+                    <div className="card-body">
                         <div className="form-control">
                             <label className="label cursor-pointer flex flex-row items-center gap-2 justify-start">
                                 <Key key="M" text="M" />
@@ -117,7 +117,7 @@ export function VolumeCommand(props: VolumeCommandProps) {
                             <Key key="U" text="U" />
                         </div>
                         {/* {errorMessage && <div className="text-xs text-center text-red-500">{errorMessage}</div>} */}
-                    </>
+                    </div>
                 ) : null
             }
         />
