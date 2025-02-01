@@ -1,6 +1,6 @@
 {
   "name": "modal-commander",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "main": "dist-electron/main/index.js",
   "description": "Modal Commander",
   "author": "Paul Johnson <paul@johnson.kiwi.nz>",
