@@ -105,7 +105,7 @@ export class WindowManager {
     this.applicationCache = new Map();
 
     for (const window of windows) {
-      if (window.title === "Electron") {
+      if (window.title === "Electron" || window.title === "Modal Commander") {
         continue;
       }
       this.windowCache.set(window.id, window);

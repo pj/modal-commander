@@ -71,9 +71,6 @@ function App({ debug }: AppProps) {
     const [lastMessage, setLastMessage] = useState<any>(null);
 
     const handleMessage = useCallback((event: any, message: any) => {
-        // console.log('main-message event received:', event)
-        // console.log('main-message message received:', message)
-        // sendMessage({ type: 'log', log: `received message: ${JSON.stringify(event.data)}` })
         if (message.type === 'setRootCommand') {
             if (appState.componentCache[message.data.name]) {
                 dispatchAppState({
@@ -85,8 +82,6 @@ function App({ debug }: AppProps) {
                 });
             } else {
                 import(`mc://commands/${message.data.package}`).then((module: any) => {
-                    // console.log('setRootCommand', message.data)
-                    // console.log('module', module)
                     const rootComponent = module.components[message.data.name];
                     dispatchAppState({
                         type: 'loadConfig',
@@ -106,23 +101,7 @@ function App({ debug }: AppProps) {
     }, []);
 
     useEffect(() => {
-        // console.log('reloading')
         window.ipcRenderer.on('main-message', handleMessage);
-        // window.ipcRenderer.invoke('page-ready').then((config: any) => {
-        //     // console.log('config', config)
-        //     import(`mc://commands/${config.rootCommand.package}`).then((module: any) => {
-        //         console.log('reloaded command')
-        //         // console.log('module', module)
-        //         const rootComponent = module.components[config.rootCommand.name];
-        //         dispatchAppState({
-        //             type: 'loadConfig',
-        //             data: {
-        //                 rootComponent: rootComponent,
-        //                 rootProps: config.rootCommand.props
-        //             }
-        //         })
-        //     })
-        // })
 
         return () => {
             window.ipcRenderer.off('main-message', handleMessage)
@@ -149,7 +128,7 @@ function App({ debug }: AppProps) {
 
                         <div 
                             key={appState.cacheBusterKey} 
-                            className="font-sans bg-gray-100 shadow-xl flex flex-row flex-nowrap justify-start space-x-2.5 items-stretch border border-gray-200 rounded-lg p-2.5 h-full"
+                            className="font-sans bg-gray-100 shadow-xl flex flex-row flex-nowrap justify-start space-x-2.5 items-stretch border border-gray-200 rounded-lg p-2.5 h-dvh"
                         >
                             <appState.rootComponent index={0} {...appState.rootProps} />
                         </div>

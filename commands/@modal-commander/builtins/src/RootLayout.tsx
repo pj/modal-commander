@@ -134,13 +134,16 @@ export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
             continue;
         }
         screenNodes.push(
-            <div key={monitorName} className="p-1 rounded-sm bg-black relative" style={{
-                width: monitor.bounds.width * 0.1,
-                height: monitor.bounds.height * 0.1,
-                left: monitor.bounds.x * 0.1,
-                top: monitor.bounds.y * 0.1,
-                position: "relative"
-            }}>
+            <div
+                key={monitorName} 
+                className="p-1 rounded-sm bg-black relative" 
+                style={{
+                    width: monitor.bounds.width * 0.1,
+                    height: monitor.bounds.height * 0.1,
+                    left: monitor.bounds.x * 0.1,
+                    top: monitor.bounds.y * 0.1,
+                }}
+            >
 
                 <LayoutNode
                     layout={layout}
@@ -157,31 +160,12 @@ export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
     );
 }
 
-// export type RenderLayoutScreenSetProps = {
-//     layout: WindowManagerLayout;
-//     monitors: Monitor[];
-//     screenSet: ScreenConfig;
-// }
-
-// export function RenderLayoutScreenSet({ layout, monitors, screenSet }: RenderLayoutScreenSetProps) {
-//     return (
-//         <div key={layout.name}>
-//             <div style={{ width: 160 }} className="flex flex-row items-center justify-center p-1 gap-1">
-//                 <Key text={layout.quickKey}></Key>
-//                 <div className="text-xs">{layout.name}</div>
-//             </div>
-//             <RenderScreenSet monitors={monitors} screenSet={screenSet} />
-//         </div>
-//     )
-// }
-
 export function RenderLayout({ layout, monitors }: RootLayoutProps) {
     const screenSet = findMatchingScreenSet(layout, monitors);
     if (screenSet) {
-        // return <RenderLayoutScreenSet key={layout.name} layout={layout} monitors={monitors} screenSet={screenSet} />
         return (
             <div key={layout.name}>
-                <div style={{ width: 160 }} className="flex flex-row items-center justify-center p-1 gap-1">
+                <div className="flex flex-row items-center justify-center p-1 gap-1">
                     <Key text={layout.quickKey}></Key>
                     <div className="text-xs">{layout.name}</div>
                 </div>

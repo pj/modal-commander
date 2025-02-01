@@ -7,7 +7,8 @@ import {
   net,
   protocol,
   shell,
-  Tray
+  Tray,
+  screen
 } from 'electron'
 import log from 'electron-log'
 import { readFile } from 'node:fs/promises'
@@ -112,14 +113,16 @@ function setupShortcuts(config: ModalCommanderConfig, messageListeners: Map<stri
 }
 
 function setupWindow() {
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width, height } = primaryDisplay.workAreaSize
   win = new BrowserWindow({
-    title: 'Main window',
+    title: 'Modal Commander',
     icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
     hiddenInMissionControl: true,
     show: false,
     frame: false,
-    width: 2000,
-    height: 500,
+    width: width * 0.7,
+    height: 350,
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production

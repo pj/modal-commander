@@ -8,12 +8,6 @@ export default {
   safelist: [
     {pattern: /./},
   ],
-  theme: {
-    extend: {},
-  },
-//   corePlugins: {
-//     preflight: false,
-//   },
   plugins: [daisyui],
   daisyui: {
     themes: ["light"],

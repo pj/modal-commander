@@ -287,10 +287,12 @@ export function MoveWindowToCommand(props: MoveWindowToCommandProps) {
             headerText={headerText}
             inner={
                 monitors && screenConfig ? (
-                    <RenderScreenSet
-                        monitors={monitors}
-                        screenSet={screenConfig}
-                    />
+                    <div className="card-body">
+                        <RenderScreenSet
+                            monitors={monitors}
+                            screenSet={screenConfig}
+                        />
+                    </div>
                 ) : null
             }
         />

@@ -10,9 +10,9 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
     const [windowManagementState, setWindowManagementState] = useState<FrontendState | undefined>(undefined)
 
     const getWindowManagementState = useCallback(() => {
-        sendInvoke({ 
-            command: '@modal-commander/builtins#LayoutSelectCommand', 
-            type: 'getState' 
+        sendInvoke({
+            command: '@modal-commander/builtins#LayoutSelectCommand',
+            type: 'getState'
         }).then(
             (state: FrontendState) => {
                 setWindowManagementState(state)
@@ -41,8 +41,8 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
         for (const layout of windowManagementState?.layouts || []) {
             if (layout.quickKey === event.key) {
-                sendInvoke({ 
-                    command: '@modal-commander/builtins#LayoutSelectCommand', 
+                sendInvoke({
+                    command: '@modal-commander/builtins#LayoutSelectCommand',
                     type: 'setLayout',
                     quickKey: layout.quickKey
                 });
@@ -67,8 +67,10 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
             headerText="Layout Select"
             inner={
                 windowManagementState ? (
-                    <div className="card-body flex flex-row divide-x *:p-2 first:*:pt-0 last:*:pb-0">
-                        {layouts}
+                    <div className="card-body">
+                        <div className="flex flex-row divide-x-2">
+                            {layouts}
+                        </div>
                     </div>
                 ) : null
             }
