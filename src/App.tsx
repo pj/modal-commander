@@ -13,6 +13,11 @@ export const AppExitContext = createContext<any>(null);
 export const ModalCommanderContext = createContext<any>(null);
 window.ModalCommanderContext = ModalCommanderContext;
 
+// Force tailwind to load focus classes
+function AnnoyingFakeComponentForTailwind() {
+    return (<div className="display-none focus:outline-none focus:ring focus:ring-light-blue-200"></div>);
+}
+
 class AppErrorBoundary extends React.Component<any, any> {
     constructor(props: any) {
         super(props);
@@ -36,7 +41,7 @@ class AppErrorBoundary extends React.Component<any, any> {
     }
 }
 
-function App({ debug }: AppProps) {
+export default function App({ debug }: AppProps) {
     const [appState, dispatchAppState] = useReducer(
         (state: any, action: any) => {
             if (action.type === 'resetState') {
@@ -130,6 +135,7 @@ function App({ debug }: AppProps) {
                             key={appState.cacheBusterKey} 
                             className="font-sans bg-gray-100 shadow-xl flex flex-row flex-nowrap justify-start space-x-2.5 items-stretch border border-gray-200 rounded-lg p-2.5 h-dvh"
                         >
+                            <AnnoyingFakeComponentForTailwind />
                             <appState.rootComponent index={0} {...appState.rootProps} />
                         </div>
                     ) : (
@@ -140,5 +146,3 @@ function App({ debug }: AppProps) {
         </AppErrorBoundary>
     )
 }
-
-export default App
