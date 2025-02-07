@@ -11,6 +11,8 @@ export type RenderOptions = {
     selected?: boolean;
     render?: React.ReactNode;
     index: number;
+    onClick?: () => void;
+    directionLeader?: React.ReactNode;
 }
 
 type RootLayoutProps = {
@@ -34,6 +36,7 @@ function Window({ frame, text, margin, layout }: WindowProps) {
                 height: '100%',
                 fontSize: "0.5rem"
             }}
+            onClick={layout.attachment?.onClick}
             className={`${columnCss} ${margin} ${selectedClass}`}
         >
             <div style={{ height: "4px" }} className="bg-gray-200 rounded-t-md flex flex-row items-center justify-start pl-1">
@@ -77,7 +80,8 @@ export function LayoutNode({ layout, frame, margin }: LayoutProps) {
 
         const className = "flex flex-row h-full " + margin;
         return (
-            <div className={className}>
+            <div onClick={layout.attachment?.onClick} className={className}>
+                {layout.attachment?.directionLeader}
                 {columns}
             </div>
         );
@@ -91,6 +95,7 @@ export function LayoutNode({ layout, frame, margin }: LayoutProps) {
             }
             rows.push(
                 <div key={i} style={{ height: `${row.percentage}%`, width: '100%' }}>
+                    {row.attachment?.directionLeader}
                     <LayoutNode
                         layout={row}
                         frame={frame}
@@ -102,7 +107,7 @@ export function LayoutNode({ layout, frame, margin }: LayoutProps) {
 
         const className = "flex flex-col h-full " + margin;
         return (
-            <div className={className}>
+            <div onClick={layout.attachment?.onClick} className={className}>
                 {rows}
             </div>
         );
@@ -125,7 +130,49 @@ export type RenderScreenSetProps = {
     screenSet: ScreenConfig;
 }
 
+const ActualWidth = 320;
+const ActualHeight = 240;
 export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
+    let minWidth = Infinity;
+    let minHeight = Infinity;
+    let maxWidth = 0;
+    let maxHeight = 0;
+    let primaryMonitor = null;
+    for (const monitor of monitors) {
+        if (monitor.main) {
+            primaryMonitor = monitor;
+        }
+    }
+
+    if (!primaryMonitor) {
+        log.warn("No primary monitor found");
+        return;
+    }
+
+    for (const monitor of monitors) {
+        if ((monitor.bounds.x + monitor.bounds.width) > maxWidth) {
+            maxWidth = monitor.bounds.x + monitor.bounds.width;
+        }
+        if (monitor.bounds.x < minWidth) {
+            minWidth = monitor.bounds.x;
+        }
+        // Convert coordinates to be based on top left.
+        const normalizedY = primaryMonitor.bounds.height - (monitor.bounds.height + monitor.bounds.y);
+        if ((normalizedY + monitor.bounds.height) > maxHeight) {
+            maxHeight = normalizedY + monitor.bounds.height;
+        }
+        if (normalizedY < minHeight) {
+            minHeight = normalizedY;
+        }
+    }
+
+    const realWidth = maxWidth - minWidth;
+    const realHeight = maxHeight - minHeight;
+
+    const scaleX = ActualWidth / realWidth;
+    const totalComputedHeight = realHeight * scaleX;
+    const offsetY = (ActualHeight - totalComputedHeight) / 2;
+
     const screenNodes = [];
     for (const [monitorName, layout] of Object.entries(screenSet)) {
         const monitor = monitors.find(m => m.name === monitorName || (m.main && monitorName === SCREEN_PRIMARY));
@@ -133,15 +180,16 @@ export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
             log.warn(`Unable to find monitor ${monitorName} for screen set ${JSON.stringify(screenSet)}`);
             continue;
         }
+        const normalizedY = primaryMonitor.bounds.height - (monitor.bounds.height + monitor.bounds.y);
         screenNodes.push(
             <div
                 key={monitorName} 
-                className="p-1 rounded-sm bg-black relative" 
+                className="p-1 rounded-sm bg-black absolute" 
                 style={{
-                    width: monitor.bounds.width * 0.1,
-                    height: monitor.bounds.height * 0.1,
-                    left: monitor.bounds.x * 0.1,
-                    top: monitor.bounds.y * 0.1,
+                    width: monitor.bounds.width * scaleX,
+                    height: monitor.bounds.height * scaleX,
+                    left: monitor.bounds.x * scaleX,
+                    top: (normalizedY * scaleX) + offsetY,
                 }}
             >
 
@@ -154,7 +202,7 @@ export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
         );
     }
     return (
-        <div>
+        <div className="relative" style={{ width: ActualWidth, height: ActualHeight }}>
             {screenNodes}
         </div>
     );

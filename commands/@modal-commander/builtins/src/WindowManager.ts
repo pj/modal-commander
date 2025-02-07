@@ -77,7 +77,7 @@ export class WindowManager {
   private async checkFocus() {
     const focusedApp = this.native.getFocusedApplication();
     if (focusedApp && focusedApp.name !== this.currentApplication?.name) {
-      if (focusedApp.bundleId === "com.github.Electron") {
+      if (focusedApp.bundleId === "com.github.Electron" || focusedApp.name === "Modal Commander") {
         return;
       }
       const cachedApp = this.applicationCache.get(focusedApp.name);

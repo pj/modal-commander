@@ -6,6 +6,7 @@ import { VolumeCommandMain } from "./VolumeCommandMain";
 import { LayoutSelectCommandMain } from "./LayoutSelectCommandMain";
 import { MoveWindowToCommandMain } from "./MoveWindowToCommandMain";
 import { ApplicationSwitchCommandMain } from "./ApplicationSwitchCommandMain";
+import { MoveWindowFromCommandMain } from "./MoveWindowFromCommandMain";
 
 export default {
     TextCommand: TextCommandMain,
@@ -15,5 +16,6 @@ export default {
     VolumeCommand: VolumeCommandMain,
     LayoutSelectCommand: LayoutSelectCommandMain,
     MoveWindowToCommand: MoveWindowToCommandMain,
+    MoveWindowFromCommand: MoveWindowFromCommandMain,
     ApplicationSwitchCommand: ApplicationSwitchCommandMain
 }

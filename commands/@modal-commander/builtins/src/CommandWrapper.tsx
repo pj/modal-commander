@@ -1,4 +1,5 @@
-import React, { useContext, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FrontendState } from "./WindowManagementTypes";
 
 export type DefaultCommandProps = {
     index: number,
@@ -96,4 +97,40 @@ export function CommandWrapperWithFocus(props: CommandWrapperProps): [(focus: bo
             {props.next}
         </>
     ];
+}
+
+export function useMainState<T>(command: string) {
+    const { sendInvoke } = useContext(window.ModalCommanderContext)
+    const [state, setState] = useState<T | undefined>(undefined)
+
+    const getState = useCallback(() => {
+        sendInvoke({
+            command: command,
+            type: 'getState'
+        }).then(
+            (state: T) => {
+                setState(state)
+            }
+        );
+    }, [sendInvoke])
+
+    const handleVisibilityChange = () => {
+        if (!document.hidden) {
+            getState()
+        }
+    }
+
+    useEffect(() => {
+        getState()
+        window.addEventListener("visibilitychange", handleVisibilityChange);
+        const interval = setInterval(() => {
+            getState();
+        }, 10000);
+        return () => {
+            window.removeEventListener("visibilitychange", handleVisibilityChange);
+            clearInterval(interval);
+        }
+    }, []);
+
+    return state;
 }
