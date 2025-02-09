@@ -7,28 +7,47 @@ const columnCss = "rounded-md text-xs bg-white flex flex-col border border-gray-
 const columnStyle = { fontSize: "0.5rem" }
 
 // Extended types that include selection state and a react node to render inside the layout box.
-export type RenderOptions = {
-    selected?: boolean;
-    render?: React.ReactNode;
-    index: number;
-    onClick?: () => void;
-    directionLeader?: React.ReactNode;
-}
-
-type RootLayoutProps = {
-    layout: WindowManagerLayout;
-    monitors: Monitor[];
-}
+// export type RenderOptions = {
+//     selected?: boolean;
+//     render?: React.ReactNode;
+//     index: number;
+//     onClick?: () => void;
+//     directionLeader?: React.ReactNode;
+// }
 
 type WindowProps = {
     frame: Bounds;
     text: string;
     margin: string;
-    layout: Layout<RenderOptions>;
+    layout: Layout;
+    selected?: boolean;
+    onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
-function Window({ frame, text, margin, layout }: WindowProps) {
-    const selectedClass = layout.attachment?.selected ? "ring-2 ring-blue-500" : "";
+export type VisitDetails = {
+    location: number[];
+    layout: Layout;
+    monitor: string;
+    applicationName: string | null;
+    windows: number[] | null;
+}
+
+export type NodeVisitor = {
+    generateOnClick(details: VisitDetails): (event: React.MouseEvent<HTMLDivElement>) => void;
+    generateDirectionLeader(details: VisitDetails): React.ReactNode | null;
+    generateRender(details: VisitDetails): React.ReactNode | null;
+    generateSelected(details: VisitDetails): boolean;
+}
+
+export const DefaultVisitor: NodeVisitor = {
+    generateOnClick: () => () => {},
+    generateDirectionLeader: () => null,
+    generateRender: () => null,
+    generateSelected: () => false,
+}
+
+function Window({ selected, text, margin, layout, onClick }: WindowProps) {
+    const selectedClass = selected ? "ring-2 ring-blue-500" : "";
     return (
         <div
             style={{
@@ -36,7 +55,7 @@ function Window({ frame, text, margin, layout }: WindowProps) {
                 height: '100%',
                 fontSize: "0.5rem"
             }}
-            onClick={layout.attachment?.onClick}
+            onClick={onClick}
             className={`${columnCss} ${margin} ${selectedClass}`}
         >
             <div style={{ height: "4px" }} className="bg-gray-200 rounded-t-md flex flex-row items-center justify-start pl-1">
@@ -46,25 +65,29 @@ function Window({ frame, text, margin, layout }: WindowProps) {
             </div>
             <hr className="border-gray-300" />
             <div className="flex h-full items-center justify-center text-center">
-                {layout.attachment?.render ? layout.attachment.render : text}
+                {text}
             </div>
         </div>
     );
 }
 
 type LayoutProps = {
-    layout: Layout<RenderOptions>;
+    layout: Layout;
     frame: Bounds;
     margin: string;
+    visitor: NodeVisitor;
+    location: number[];
+    monitor: string;
 }
 
-export function LayoutNode({ layout, frame, margin }: LayoutProps) {
+export function LayoutNode({ layout, frame, margin, visitor, location, monitor }: LayoutProps) {
     if (layout.type === "columns") {
         let columns = [];
+        const directionLeader = visitor.generateDirectionLeader({ location, layout, monitor, applicationName: null, windows: null });
         for (let i = 0; i < layout.columns.length; i++) {
             let column = layout.columns[i];
             let margin = "";
-            if (i > 0) {
+            if (i > 0 || directionLeader) {
                 margin = "ml-1";
             }
             columns.push(
@@ -73,33 +96,39 @@ export function LayoutNode({ layout, frame, margin }: LayoutProps) {
                         layout={column}
                         frame={frame}
                         margin={margin}
+                        visitor={visitor}
+                        location={[...location, i]}
+                        monitor={monitor}
                     />
                 </div>
             )
         }
 
-        const className = "flex flex-row h-full " + margin;
+        const className = "flex flex-row items-stretch h-full " + margin;
         return (
-            <div onClick={layout.attachment?.onClick} className={className}>
-                {layout.attachment?.directionLeader}
+            <div onClick={visitor.generateOnClick({ location, layout, monitor, applicationName: null, windows: null })} className={className}>
+                {directionLeader}
                 {columns}
             </div>
         );
     } else if (layout.type === "rows") {
         let rows = [];
+        const directionLeader = visitor.generateDirectionLeader({ location, layout, monitor, applicationName: null, windows: null });
         for (let i = 0; i < layout.rows.length; i++) {
             let row = layout.rows[i];
             let margin = "";
-            if (i > 0) {
+            if (i > 0 || directionLeader) {
                 margin = "mt-1";
             }
             rows.push(
                 <div key={i} style={{ height: `${row.percentage}%`, width: '100%' }}>
-                    {row.attachment?.directionLeader}
                     <LayoutNode
                         layout={row}
                         frame={frame}
                         margin={margin}
+                        visitor={visitor}
+                        location={[...location, i]}
+                        monitor={monitor}
                     />
                 </div>
             )
@@ -107,19 +136,41 @@ export function LayoutNode({ layout, frame, margin }: LayoutProps) {
 
         const className = "flex flex-col h-full " + margin;
         return (
-            <div onClick={layout.attachment?.onClick} className={className}>
+            <div onClick={visitor.generateOnClick({ location, layout, monitor, applicationName: null, windows: null })} className={className}>
+                {directionLeader}
                 {rows}
             </div>
         );
     }
     else if (layout.type === "stack") {
-        return <Window frame={frame} text="Stack" margin={margin} layout={layout} />
+        return <Window 
+            frame={frame} 
+            text="Stack" 
+            margin={margin} 
+            layout={layout} 
+            selected={visitor.generateSelected({ location, layout, monitor, applicationName: null, windows: null })}
+            onClick={visitor.generateOnClick({ location, layout, monitor, applicationName: null, windows: null })}
+            />
     }
     else if (layout.type === "pinned") {
-        return <Window frame={frame} text={layout.application || ""} margin={margin} layout={layout} />
+        return <Window 
+            frame={frame} 
+            text={layout.application || ""} 
+            margin={margin} 
+            layout={layout} 
+            selected={visitor.generateSelected({ location, layout, monitor, applicationName: null, windows: null })}
+            onClick={visitor.generateOnClick({ location, layout, monitor, applicationName: null, windows: null })}
+        />
     }
     else if (layout.type === "empty") {
-        return <Window frame={frame} text="Empty" margin={margin} layout={layout} />
+        return <Window 
+            frame={frame} 
+            text="Empty" 
+            margin={margin} 
+            layout={layout} 
+            selected={visitor.generateSelected({ location, layout, monitor, applicationName: null, windows: null })}
+            onClick={visitor.generateOnClick({ location, layout, monitor, applicationName: null, windows: null })}
+        />
     }
 
     return (<div>Unknown layout type {JSON.stringify(layout)}</div>);
@@ -128,11 +179,12 @@ export function LayoutNode({ layout, frame, margin }: LayoutProps) {
 export type RenderScreenSetProps = {
     monitors: Monitor[];
     screenSet: ScreenConfig;
+    visitor: NodeVisitor;
 }
 
 const ActualWidth = 320;
 const ActualHeight = 240;
-export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
+export function RenderScreenSet({ monitors, screenSet, visitor }: RenderScreenSetProps) {
     let minWidth = Infinity;
     let minHeight = Infinity;
     let maxWidth = 0;
@@ -197,6 +249,9 @@ export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
                     layout={layout}
                     frame={monitor.bounds}
                     margin=""
+                    visitor={visitor}
+                    location={[]}
+                    monitor={monitor.name}
                 />
             </div>
         );
@@ -208,7 +263,13 @@ export function RenderScreenSet({ monitors, screenSet }: RenderScreenSetProps) {
     );
 }
 
-export function RenderLayout({ layout, monitors }: RootLayoutProps) {
+type RootLayoutProps = {
+    layout: WindowManagerLayout;
+    monitors: Monitor[];
+    visitor: NodeVisitor;
+}
+
+export function RenderLayout({ layout, monitors, visitor }: RootLayoutProps) {
     const screenSet = findMatchingScreenSet(layout, monitors);
     if (screenSet) {
         return (
@@ -217,7 +278,7 @@ export function RenderLayout({ layout, monitors }: RootLayoutProps) {
                     <Key text={layout.quickKey}></Key>
                     <div className="text-xs">{layout.name}</div>
                 </div>
-                <RenderScreenSet monitors={monitors} screenSet={screenSet} />
+                <RenderScreenSet monitors={monitors} screenSet={screenSet} visitor={visitor} />
             </div>
         )
     } else {

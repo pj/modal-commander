@@ -1,206 +1,28 @@
-import { useCallback, useContext, useEffect, useState } from "react"
-import { CommandWrapper, DefaultCommandProps, useMainState } from "./CommandWrapper"
-import { LayoutNode, RenderOptions, RenderScreenSet } from "./RootLayout"
+import { useCallback, useContext, useEffect, useRef, useState } from "react"
+import { CommandWrapper, CommandWrapperWithFocus, DefaultCommandProps, useMainState } from "./CommandWrapper"
+import { LayoutNode, NodeVisitor, RenderScreenSet, VisitDetails } from "./RootLayout"
 import { Application, FrontendState, Layout, Monitor, ScreenConfig } from "./WindowManagementTypes"
 import { Key } from "./Key"
 import log from "electron-log"
-import { MoveSource } from "./MoveWindowToCommand"
-
-type LocationToMove = {
-    applicationName: string | null;
-    windows: number[] | null;
-    direction: number[];
-}
+import { MoveSource, MoveWindowToCommand } from "./MoveWindowToCommand"
 
 export type MoveWindowFromCommandProps = DefaultCommandProps & { source: MoveSource | null };
 
-function processLayout(
-    layout: Layout<RenderOptions>,
-    source: LocationToMove,
-    currentApplication: Application,
-    counter: { count: number },
-    setSelectedFromIndex: (index: number) => void
-): Layout<RenderOptions> {
-    const nextLayout: Layout<RenderOptions> = {
-        ...layout
-    }
-    if (nextLayout.type === "columns") {
-        let columns: Layout<RenderOptions>[] = [];
-        for (const column of nextLayout.columns) {
-            columns.push(processLayout(column, source, currentApplication, counter, setSelectedFromIndex));
-        }
-        const index = counter.count;
-        nextLayout.attachment = {
-            directionLeader: (
-                <div onClick={() => {
-                    setSelectedFromIndex(index);
-                }}>
-                    <Key text={index.toString()} />
-                </div>
-            )
-        }
-        counter.count++;
-        nextLayout.columns = columns;
-        return nextLayout;
-    } else if (nextLayout.type === "rows") {
-        let rows: Layout<RenderOptions>[] = [];
-        for (const row of nextLayout.rows) {
-            rows.push(processLayout(row, source, currentApplication, counter, setSelectedFromIndex));
-        }
-        const index = counter.count;
-        nextLayout.attachment = {
-            directionLeader: (
-                <div onClick={() => {
-                    setSelectedFromIndex(index);
-                }}>
-                    <Key text={index.toString()} />
-                </div>
-            )
-        }
-        counter.count++;
-        nextLayout.rows = rows;
-        return nextLayout;
-    } else if (nextLayout.type === "stack") {
-        if (nextLayout.computed) {
-            let selected: boolean = false;
-            let render: React.ReactNode | null = null;
-            for (const window of nextLayout.windows) {
-                if (window.application == source.applicationName) {
-                    selected = true;
-                    break;
-                }
-                if (window.title )
-                    for (const windowId of source.windows || []) {
-                        if (window.id === windowId) {
-                            selected = true;
-                        break;
-                    }
-                }
-            }
-            nextLayout.attachment = {
-                index: counter.count,
-                selected: selected,
-                render: (
-                    <>
-                        <Key text={counter.count.toString()} />
-                        {render}
-                    </>
-                )
-            }
-            counter.count++;
-        }
-        return nextLayout;
-    } else if (nextLayout.type === "pinned") {
-        if (nextLayout.computed) {
-            let index = counter.count;
-            let selected: boolean = false;
-            let render: React.ReactNode | null = null;
-            if (nextLayout.application == source.applicationName) {}
-            nextLayout.attachment = {
-                index: counter.count,
-                selected: selected,
-                render: (
-                    <>
-                        <Key text={counter.count.toString()} />
-                        {render}
-                    </>
-                ),
-                onClick: () => {
-                    setSelectedFromIndex(index);
-                }
-            }
-            counter.count++;
-        }
-        return nextLayout;
-    }
-    else if (nextLayout.type === "empty") {
-        let index = counter.count;
-        nextLayout.attachment = {
-            index: counter.count,
-            selected: false,
-            render: (
-                <>
-                    <Key text={counter.count.toString()} />
-                    Empty
-                </>
-            ),
-            onClick: () => {
-                console.log("Empty layout clicked");
-                setSelectedFromIndex(index);
-            }
-        }
-        counter.count++;
-        return nextLayout;
-    }
-    return nextLayout;
-}
-
-function getRenderDetails(state: FrontendState | undefined, source: LocationToMove | null, setSelectedFromIndex: (index: number) => void): [Monitor[], ScreenConfig] | null {
+function getRenderDetails(state: FrontendState | undefined): [Monitor[], ScreenConfig] | null {
     if (!state) {
-        return null;
-    }
-
-    if (!source) {
         return null;
     }
 
     if (state.currentLayout) {
         const currentApplication = state.currentApplication;
         if (currentApplication) {
-            const nextScreenConfig: ScreenConfig = {};
-
-            const counter = { count: 0 };
-
-            for (const [monitorName, layout] of Object.entries(state.currentLayout)) {
-                nextScreenConfig[monitorName] = processLayout(
-                    layout,
-                    source,
-                    currentApplication,
-                    counter,
-                    setSelectedFromIndex
-                );
-            }
-            return [state.monitors, nextScreenConfig];
+            return [state.monitors, state.currentLayout];
         }
     }
     return null;
 }
 
-function getDestination(layout: Layout<RenderOptions>, index: string): number[] | null {
-    if (layout.type === "columns") {
-        for (let i = 0; i < layout.columns.length; i++) {
-            const column = layout.columns[i];
-            const destination = getDestination(column, index);
-            if (destination) {
-                return [i, ...destination];
-            }
-        }
-    } else if (layout.type === "rows") {
-        for (let i = 0; i < layout.rows.length; i++) {
-            const row = layout.rows[i];
-            const destination = getDestination(row, index);
-            if (destination) {
-                return [i, ...destination];
-            }
-        }
-    } else if (layout.type === "stack") {
-        if (layout.attachment?.index.toString() === index) {
-            return [];
-        }
-    } else if (layout.type === "pinned") {
-        if (layout.attachment?.index.toString() === index) {
-            return [];
-        }
-    } else if (layout.type === "empty") {
-        if (layout.attachment?.index.toString() === index) {
-            return [];
-        }
-    }
-
-    return [];
-}
-
-function getWindowTitle(windowManagementState: FrontendState | undefined, source: LocationToMove | null): string {
+function getWindowTitle(windowManagementState: FrontendState | undefined, source: VisitDetails | null): string {
     const defaultTitle = "Move From"
     if (!windowManagementState) {
         return defaultTitle;
@@ -214,16 +36,63 @@ function getWindowTitle(windowManagementState: FrontendState | undefined, source
         return defaultTitle;
     }
 
-    // Just show applicaiton name if no windows are selected
-    if (!source.windows) {
-        return `Move ${source.applicationName} From`
-    }
+    return defaultTitle;
 
-    // Show window title if a single window is selected
-    if (source.windows.length === 1) {
-        return `Move ${source.windows[0]} From`
-    } else {
-        return `Move ${source.windows.length} ${source.applicationName} Windows From`
+    // // Just show applicaiton name if no windows are selected
+    // if (!source.windows) {
+    //     return `Move ${source.applicationName} From`
+    // }
+
+    // // Show window title if a single window is selected
+    // if (source.windows.length === 1) {
+    //     return `Move ${source.windows[0]} From`
+    // } else {
+    //     return `Move ${source.windows.length} ${source.applicationName} Windows From`
+    // }
+}
+
+function getVisitor(
+    selectedSource: VisitDetails | null,
+    setSelectedSource: (source: VisitDetails) => void,
+    currentKeysRef: React.MutableRefObject<Map<string, VisitDetails>>
+): NodeVisitor {
+    const counter = { count: -1 };
+    currentKeysRef.current = new Map();
+    return {
+        generateOnClick: (details: VisitDetails) => () => {
+            if (details.layout.type === "stack") {
+            } else if (details.layout.type === "pinned") {
+            } else if (details.layout.type === "empty") {
+            } else if (details.layout.type === "columns") {
+            } else if (details.layout.type === "rows") {
+            } else {
+                throw new Error("Unknown layout type");
+            }
+            setSelectedSource(details);
+            console.log("generateOnClick", details);
+        },
+        generateDirectionLeader: (details: VisitDetails) => {
+            counter.count++;
+            currentKeysRef.current.set(details.location.toString(), details);
+            return (
+                <div className="flex flex-row items-center justify-center bg-gray-100 rounded-md p-1 border border-gray-200">
+                    <Key text={counter.count.toString()} />
+                </div>
+            )
+        },
+        generateRender: (details: VisitDetails) => {
+            counter.count++;
+            currentKeysRef.current.set(details.location.toString(), details);
+            return (
+                <div>
+                    <Key text={counter.count.toString()} />
+                    {details.layout.type}
+                </div>
+            )
+        },
+        generateSelected: (details: VisitDetails) => {
+            return false;
+        },
     }
 }
 
@@ -231,97 +100,76 @@ export function MoveWindowFromCommand(props: MoveWindowFromCommandProps) {
     const { sendInvoke, sendMessage } = useContext(window.ModalCommanderContext)
     const windowManagementState = useMainState<FrontendState>('@modal-commander/builtins#MoveWindowFromCommand')
 
-    const [selectedSource, setSelectedSource] = useState<LocationToMove | null>(null);
+    const [selectedSource, setSelectedSource] = useState<VisitDetails | null>(null);
 
     const [initialApplication, setInitialApplication] = useState<string | null>(null);
 
-    // Set AppToMove based on source and currentApplication
-    useEffect(() => {
-        if (initialApplication === null) {
-            if (props.source === "app") {
-                if (windowManagementState?.currentApplication && windowManagementState?.currentApplication?.name) {
-                    setSelectedSource({
-                        applicationName: windowManagementState?.currentApplication?.name || "",
-                        windows: null
-                    });
-                    setInitialApplication(windowManagementState?.currentApplication?.name || "");
-                }
-            } else if (props.source === "window") {
-                if (windowManagementState?.currentApplication && windowManagementState?.currentApplication?.focusedWindow) {
-                    setSelectedSource({
-                        applicationName: windowManagementState?.currentApplication?.focusedWindow?.title || "",
-                        windows: [windowManagementState?.currentApplication?.focusedWindow?.id]
-                    });
-                    setInitialApplication(windowManagementState?.currentApplication?.focusedWindow?.title || "");
-                }
-            } else if (props.source !== null) {
-                const window = windowManagementState?.windows.find(window => window.id === props.source);
-                if (window) {
-                    setSelectedSource({
-                        applicationName: window.application,
-                        windows: [window.id]
-                    });
-                    setInitialApplication(window.application);
-                }
-            }
-        }
-    }, [props.source, windowManagementState?.currentApplication]);
+    const currentKeysRef = useRef<Map<string, VisitDetails>>(new Map());
 
-    // console.log("--------------------------------")
-    // console.log("windowManagementState", windowManagementState)
-    // console.log("monitor", monitor)
-    // console.log("layout", layout)
-    // console.log("currentApplication", currentApplication)
-    // console.log("bounds", bounds)
+    // Set AppToMove based on source and currentApplication
+    // useEffect(() => {
+    //     if (initialApplication === null) {
+    //         if (props.source === "app") {
+    //             if (windowManagementState?.currentApplication && windowManagementState?.currentApplication?.name) {
+    //                 setSelectedSource({
+    //                     applicationName: windowManagementState?.currentApplication?.name || "",
+    //                     windows: null
+    //                 });
+    //                 setInitialApplication(windowManagementState?.currentApplication?.name || "");
+    //             }
+    //         } else if (props.source === "window") {
+    //             if (windowManagementState?.currentApplication && windowManagementState?.currentApplication?.focusedWindow) {
+    //                 setSelectedSource({
+    //                     applicationName: windowManagementState?.currentApplication?.focusedWindow?.title || "",
+    //                     windows: [windowManagementState?.currentApplication?.focusedWindow?.id]
+    //                 });
+    //                 setInitialApplication(windowManagementState?.currentApplication?.focusedWindow?.title || "");
+    //             }
+    //         } else if (props.source !== null) {
+    //             const window = windowManagementState?.windows.find(window => window.id === props.source);
+    //             if (window) {
+    //                 setSelectedSource({
+    //                     applicationName: window.application,
+    //                     windows: [window.id]
+    //                 });
+    //                 setInitialApplication(window.application);
+    //             }
+    //         }
+    //     }
+    // }, [props.source, windowManagementState?.currentApplication]);
 
     const headerText = getWindowTitle(windowManagementState, selectedSource);
 
-    const setSelectedFromIndex = (index: number) => {
-        if (selectedSource) {
-            selectedSource.windows = [index];
-        }
-    }
-
-    const renderDetails = getRenderDetails(windowManagementState, selectedSource, setSelectedFromIndex);
+    const renderDetails = getRenderDetails(windowManagementState);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (!renderDetails) {
-            log.warn("No layout found");
-            return;
+        const keyDetails = currentKeysRef.current.get(event.key);
+        if (keyDetails) {
+            setSelectedSource(keyDetails);
         }
-        const index = event.key
-        let destination: number[] | null = null;
-        let destinationMonitor: string | null = null;
-        for (const [monitorName, layout] of Object.entries(renderDetails[1])) {
-            destination = getDestination(layout, index);
-            if (destination) {
-                destinationMonitor = monitorName;
-                break;
-            }
-        }
-        if (destination) {
-            setSelectedFromIndex(destination[0]);
-        }
-
-        return;
     }
 
-    return (
-        <CommandWrapper
-            {...props}
-            keyHandler={handleKeyDown}
-            testIdPrefix="move-window-to"
-            headerText={headerText}
-            inner={
-                renderDetails ? (
-                    <div className="card-body">
-                        <RenderScreenSet
-                            monitors={renderDetails[0]}
-                            screenSet={renderDetails[1]}
-                        />
-                    </div>
-                ) : null
-            }
-        />
-    );
+    const [setFocus, wrapper] = CommandWrapperWithFocus({
+        ...props,
+        keyHandler: handleKeyDown,
+        inner: renderDetails ? (
+            <div className="card-body">
+                <RenderScreenSet
+                    monitors={renderDetails[0]}
+                    screenSet={renderDetails[1]}
+                    visitor={getVisitor(selectedSource, setSelectedSource, currentKeysRef)}
+                />
+            </div>
+        ) : null,
+        next: selectedSource ? <MoveWindowToCommand index={props.index + 1} handleDelete={handleDelete} source={null} /> : null,
+        headerText: headerText,
+        testIdPrefix: "move-window-from-command"
+    });
+
+    function handleDelete() {
+        setSelectedSource(null)
+        setFocus(true)
+    }
+
+    return (wrapper);
 }

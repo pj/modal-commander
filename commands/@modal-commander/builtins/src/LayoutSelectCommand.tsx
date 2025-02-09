@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useContext, useState } from "react"
 import { CommandWrapper, DefaultCommandProps } from "./CommandWrapper"
 import { FrontendState } from "./WindowManagementTypes"
-import { RenderLayout } from "./RootLayout"
+import { DefaultVisitor, RenderLayout } from "./RootLayout"
 
 export type LayoutCommandProps = DefaultCommandProps
 
@@ -54,7 +54,7 @@ export function LayoutSelectCommand(props: LayoutCommandProps) {
     const layouts = [];
     if (windowManagementState) {
         for (const layout of windowManagementState?.layouts || []) {
-            layouts.push(<RenderLayout key={layout.name} layout={layout} monitors={windowManagementState.monitors} />)
+            layouts.push(<RenderLayout key={layout.name} layout={layout} monitors={windowManagementState.monitors} visitor={DefaultVisitor} />)
         }
     }
     console.log(windowManagementState?.layouts);
