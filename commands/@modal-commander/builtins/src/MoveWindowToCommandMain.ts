@@ -1,5 +1,6 @@
 import log from 'electron-log';
 import { getInstance, WindowManager } from './WindowManager';
+import { VisitDetails } from './WindowManagementTypes';
 
 export class MoveWindowToCommandMain {
   private config: any;
@@ -22,26 +23,9 @@ export class MoveWindowToCommandMain {
         return;
       }
 
-      const currentApplication = state?.currentApplication;
-      if (!currentApplication) {
-        log.warn("No current application");
-        return;
-      }
-
-      if (message.source === "app") {
-        await this.windowManager?.moveTo(message.monitor, currentApplication.name, null, message.destination);
-      } else if (message.source === "window") {
-        if (currentApplication.focusedWindow) {
-          await this.windowManager?.moveTo(
-            message.monitor, 
-            currentApplication.name, 
-            currentApplication.focusedWindow.id, 
-            message.destination
-          );
-        } else {
-          log.warn("No focused window");
-        }
-      }
+      const destination: VisitDetails = message.destination;
+      const source: VisitDetails = message.source;
+      await this.windowManager?.moveTo(source, destination);
     }
     return {
       ...state

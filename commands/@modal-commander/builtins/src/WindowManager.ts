@@ -9,7 +9,8 @@ import {
   WindowManagerState,
   Bounds,
   Application,
-  StackLayout
+  StackLayout,
+  VisitDetails
 } from './WindowManagementTypes';
 import log from 'electron-log';
 import { C } from 'vitest/dist/chunks/reporters.0x019-V2';
@@ -236,14 +237,16 @@ export class WindowManager {
 
   private moveApplicationToMonitor(
     screenSet: ScreenConfig,
-    application: string,
-    window: number | string | null,
-    destinationMonitor: string,
-    destination: number[]
+    // application: string,
+    // window: number | string | null,
+    // destinationMonitor: string,
+    // destination: number[]
+    source: VisitDetails,
+    destination: VisitDetails
   ): void {
     for (const [monitorName, monitorLayout] of Object.entries(screenSet)) {
-      let applicationDestination = monitorName === destinationMonitor ? destination : null;
-      if (destinationMonitor === SCREEN_PRIMARY) {
+      let applicationDestination = monitorName === destination.monitor ? destination : null;
+      if (destination.monitor === SCREEN_PRIMARY) {
         const primaryMonitor = Array.from(this.screenCache.values()).find(s => s.main);
         if (primaryMonitor) {
           applicationDestination = destination;
@@ -252,7 +255,7 @@ export class WindowManager {
       if (monitorName === SCREEN_PRIMARY) {
         const primaryMonitor = Array.from(this.screenCache.values()).find(s => s.main);
         if (primaryMonitor) {
-          if (primaryMonitor.name === destinationMonitor) {
+          if (primaryMonitor.name === destination.monitor) {
             applicationDestination = destination;
           }
         }
@@ -271,7 +274,7 @@ export class WindowManager {
     }
   }
 
-  public async moveTo(monitor: string, application: string, window: number | string | null, destinationPath: number[]) {
+  public async moveTo(source: VisitDetails, destination: VisitDetails) {
     if (!this.currentLayout) {
       log.warn(`No current layout`);
       return;

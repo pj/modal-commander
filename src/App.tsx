@@ -15,7 +15,7 @@ window.ModalCommanderContext = ModalCommanderContext;
 
 // Force tailwind to load focus classes
 function AnnoyingFakeComponentForTailwind() {
-    return (<div className="display-none focus:outline-none focus:ring focus:ring-light-blue-200"></div>);
+    return (<div className="display-none focus:outline-none focus:ring focus:ring-light-blue-200 z-[10] z-[1]"></div>);
 }
 
 class AppErrorBoundary extends React.Component<any, any> {

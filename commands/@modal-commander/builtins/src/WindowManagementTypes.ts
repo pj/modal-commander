@@ -125,3 +125,11 @@ export type WindowManagerLayout = z.infer<typeof WindowManagerLayout>;
 export type WindowManagerState = z.infer<typeof WindowManagerState>;
 export type FrontendState = z.infer<typeof FrontendState>;
 export type Application = z.infer<typeof Application>;
+
+export type VisitDetails = {
+    location: number[];
+    layout: Layout;
+    monitor: string;
+    applicationName: string | null;
+    windows: number[] | null;
+}

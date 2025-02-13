@@ -8,6 +8,7 @@ export const useEffect = React.useEffect;
 export const useLayoutEffect = React.useLayoutEffect;
 export const useContext = React.useContext;
 export const useRef = React.useRef;
+export const useReducer = React.useReducer;
 export const useMemo = React.useMemo;
 export const useCallback = React.useCallback;
 export const createContext = React.createContext;
