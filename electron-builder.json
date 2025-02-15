@@ -1,49 +1,32 @@
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "dev.modal-commander.app",
+  "productName": "Modal Commander",
   "asar": true,
   "directories": {
     "output": "release/${version}"
   },
   "files": [
     "dist-electron",
-    "dist"
-  ],
-  "extraFiles": [
+    "dist",
     "commands"
   ],
   "mac": {
     "artifactName": "ModalCommander.${ext}",
     "executableName": "ModalCommander",
     "target": [
-      "dmg",
-      "zip"
+        {
+            "target": "dmg",
+            "arch": ["universal"]
+        },
+        {
+            "target": "zip",
+            "arch": ["universal"]
+        }
     ],
     "extendInfo": {
       "LSUIElement": 1,
       "CFBundleDisplayName": "Modal Commander"
     }
-  },
-  "win": {
-    "target": [
-      {
-        "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      }
-    ],
-    "artifactName": "ModalCommander_${version}.${ext}"
-  },
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false
-  },
-  "publish": {
-    "provider": "generic",
-    "channel": "latest",
-    "url": "https://github.com/electron-vite/electron-vite-react/releases/download/v0.9.9/"
   }
 }

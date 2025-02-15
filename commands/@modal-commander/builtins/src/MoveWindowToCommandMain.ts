@@ -25,6 +25,7 @@ export class MoveWindowToCommandMain {
 
       const destination: VisitDetails = message.destination;
       const source: VisitDetails = message.source;
+      log.info(`Moving window ${source.applicationName} to ${destination.applicationName}`);
       await this.windowManager?.moveTo(source, destination);
     }
     return {

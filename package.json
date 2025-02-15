@@ -1,5 +1,6 @@
 {
   "name": "modal-commander",
+  "productName": "Modal Commander",
   "version": "0.0.14",
   "main": "dist-electron/main/index.js",
   "description": "Modal Commander",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^1.9.0",
+    "@electron/universal": "^2.0.1",
     "@storybook/addon-essentials": "^8.3.6",
     "@storybook/addon-interactions": "^8.3.6",
     "@storybook/addon-links": "^8.3.6",

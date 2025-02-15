@@ -109,9 +109,7 @@ export const FrontendState = WindowManagerState.extend({
 
 // Type exports
 export type Bounds = z.infer<typeof Bounds>;
-export type Layout<T = any> = z.infer<typeof Layout> & {
-  attachment?: T;
-};
+export type Layout = z.infer<typeof Layout>
 export type StackLayout = z.infer<typeof StackLayout>;
 export type EmptyLayout = z.infer<typeof EmptyLayout>;
 export type PinnedLayout = z.infer<typeof PinnedLayout>;

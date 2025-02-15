@@ -138,31 +138,27 @@ export class WindowManager {
     return pinned;
   }
 
-  private moveApplicationOrWindow(
+  private removeSource(
     layout: Layout,
-    application: string,
-    window: number | string | null,
-    destination: number[] | null
+    source: VisitDetails,
   ): boolean {
     if (layout.type === "columns") {
+      const [dest, ...rest] = source.location;
       const newColumns: Layout[] = [];
-      let dest: number | null = null;
-      let rest: number[] | null = null;
-      let ended = false;
-      if (destination) {
-        [dest, ...rest] = destination;
-        ended = rest.length === 0;
-      }
+      const ended = rest.length === 0;
       for (let i = 0; i < layout.columns.length; i++) {
         const column = layout.columns[i];
         if (i === dest && ended) {
           if (column.type !== "stack") {
-            newColumns.push(this.createPinnedLayout(application, window, column.percentage));
+            newColumns.push({
+              type: "empty",
+              percentage: column.percentage
+            });
           } else {
             newColumns.push(column);
           }
         } else {
-          const pinned = this.moveApplicationOrWindow(column, application, window, rest);
+          const pinned = this.removeSource(column, { ...source, location: rest });
           if (pinned) {
             newColumns.push({
               type: "empty",
@@ -176,27 +172,21 @@ export class WindowManager {
       layout.columns = newColumns;
     } else if (layout.type === "rows") {
       const newRows: Layout[] = [];
-      let dest: number | null = null;
-      let rest: number[] | null = null;
-      let ended = false;
-      if (destination) {
-        [dest, ...rest] = destination;
-        ended = rest.length === 0;
-      }
+      const [dest, ...rest] = source.location;
+      const ended = rest.length === 0;
       for (let i = 0; i < layout.rows.length; i++) {
         const row = layout.rows[i];
         if (i === dest && ended) {
           if (row.type !== "stack") {
             newRows.push({
-              type: "pinned",
-              application,
+              type: "empty",
               percentage: row.percentage
             });
           } else {
             newRows.push(row);
           }
         } else {
-          const pinned = this.moveApplicationOrWindow(row, application, window, rest);
+          const pinned = this.removeSource(row, { ...source, location: rest });
           if (pinned) {
             newRows.push({
               type: "empty",
@@ -209,7 +199,7 @@ export class WindowManager {
       }
       layout.rows = newRows;
     } else if (layout.type === "float_zoomed") {
-      const pinned = this.moveApplicationOrWindow(layout.layout, application, window, destination);
+      const pinned = this.removeSource(layout.layout, source);
       if (pinned) {
         layout.layout = {
           type: "empty",
@@ -217,70 +207,148 @@ export class WindowManager {
         };
       }
 
-      layout.floats = layout.floats?.filter(float => float.application !== application) || [];
-      layout.zoomed = layout.zoomed?.filter(zoomed => zoomed.application !== application) || [];
+      layout.floats = layout.floats?.filter(float => float.application !== source.applicationName) || [];
+      layout.zoomed = layout.zoomed?.filter(zoomed => zoomed.application !== source.applicationName) || [];
     } else if (layout.type === "pinned") {
-      if (layout.application === application) {
-        if (window) {
-          if (typeof window === "string" && layout.title === window) {
-            return true;
-          } else if (typeof window === "number" && layout.id === window) {
-            return true;
-          }
-        } else {
+      if (layout.application === source.applicationName) {
+        if (source.windows === null || source.windows.length === 0) {
           return true;
         }
+
+        const newWindows = source.windows?.filter(window => window !== layout.id);
+        return newWindows.length === 0;
       }
     }
     return false;
   }
 
-  private moveApplicationToMonitor(
-    screenSet: ScreenConfig,
-    // application: string,
-    // window: number | string | null,
-    // destinationMonitor: string,
-    // destination: number[]
+  private addDestination(
+    layout: Layout,
     source: VisitDetails,
-    destination: VisitDetails
-  ): void {
-    for (const [monitorName, monitorLayout] of Object.entries(screenSet)) {
-      let applicationDestination = monitorName === destination.monitor ? destination : null;
-      if (destination.monitor === SCREEN_PRIMARY) {
+    destination: VisitDetails,
+  ): boolean {
+    if (layout.type === "columns") {
+      const [dest, ...rest] = destination.location;
+      const newColumns: Layout[] = [];
+      const ended = rest.length === 0;
+      for (let i = 0; i < layout.columns.length; i++) {
+        const column = layout.columns[i];
+        if (i === dest && ended) {
+          if (column.type !== "stack") {
+            if (source.applicationName) {
+              newColumns.push(
+                {
+                  type: "pinned",
+                  application: source.applicationName,
+                  percentage: column.percentage,
+                  id: source.windows?.[0]
+                }
+              )
+            } else {
+              newColumns.push(source.layout);
+            }
+          } else {
+            newColumns.push(column);
+          }
+        } else {
+          const pinned = this.addDestination(column, source, { ...destination, location: rest });
+          if (pinned) {
+            newColumns.push(destination.layout);
+          } else {
+            newColumns.push(column);
+          }
+        }
+      }
+      layout.columns = newColumns;
+    } else if (layout.type === "rows") {
+      const newRows: Layout[] = [];
+      const [dest, ...rest] = destination.location;
+      const ended = rest.length === 0;
+      for (let i = 0; i < layout.rows.length; i++) {
+        const row = layout.rows[i];
+        if (i === dest && ended) {
+          if (row.type !== "stack") {
+            if (source.applicationName) {
+              newRows.push(
+                {
+                  type: "pinned",
+                  application: source.applicationName,
+                  percentage: row.percentage,
+                  id: source.windows?.[0]
+                }
+              )
+            } else {
+              newRows.push(source.layout);
+            }
+          } else {
+            newRows.push(row);
+          }
+        } else {
+          const pinned = this.addDestination(row, source, { ...destination, location: rest });
+          if (pinned) {
+            newRows.push(destination.layout);
+          } else {
+            newRows.push(row);
+          }
+        }
+      }
+      layout.rows = newRows;
+    } else if (layout.type === "float_zoomed") {
+      const pinned = this.addDestination(layout.layout, source, destination);
+      if (pinned) {
+        layout.layout = destination.layout;
+      }
+
+      layout.floats = layout.floats?.filter(float => float.application !== destination.applicationName) || [];
+      layout.zoomed = layout.zoomed?.filter(zoomed => zoomed.application !== destination.applicationName) || [];
+    } else if (layout.type === "pinned") {
+      if (layout.application === destination.applicationName) {
+        if (destination.windows === null || destination.windows.length === 0) {
+          return true;
+        }
+
+        const newWindows = destination.windows?.filter(window => window !== layout.id);
+        return newWindows.length === 0;
+      }
+    }
+    return false;
+  }
+
+  private monitorForVisitDetails(monitorName: string, visitDetails: VisitDetails): boolean {
+      if (visitDetails.monitor === SCREEN_PRIMARY) {
         const primaryMonitor = Array.from(this.screenCache.values()).find(s => s.main);
         if (primaryMonitor) {
-          applicationDestination = destination;
+          return true;
         }
       }
       if (monitorName === SCREEN_PRIMARY) {
         const primaryMonitor = Array.from(this.screenCache.values()).find(s => s.main);
         if (primaryMonitor) {
-          if (primaryMonitor.name === destination.monitor) {
-            applicationDestination = destination;
+          if (primaryMonitor.name === visitDetails.monitor) {
+            return true;
           }
         }
       }
-      const found = this.moveApplicationOrWindow(monitorLayout, application, window, applicationDestination);
-      if (found) {
-        screenSet[monitorName] = {
-          type: "empty",
-          percentage: monitorLayout.percentage
-        };
-      }
-
-      if (applicationDestination && applicationDestination.length === 0) {
-        screenSet[monitorName] = this.createPinnedLayout(application, window, monitorLayout.percentage || 0);
-      }
+      return visitDetails.monitor === monitorName;
     }
-  }
 
   public async moveTo(source: VisitDetails, destination: VisitDetails) {
     if (!this.currentLayout) {
       log.warn(`No current layout`);
       return;
     }
+    for (const [monitorName, monitorLayout] of Object.entries(this.currentLayout)) {
+      const monitorSource = this.monitorForVisitDetails(monitorName, source);
+      if (monitorSource) {
+        this.removeSource(monitorLayout, source);
+      }
 
-    this.moveApplicationToMonitor(this.currentLayout, application, window, monitor, destinationPath);
+      const monitorDestination = this.monitorForVisitDetails(monitorName, destination);
+      if (monitorDestination) {
+        this.addDestination(monitorLayout, source, destination);
+      }
+    }
+
     await this.reconcileLayout();
   }
 

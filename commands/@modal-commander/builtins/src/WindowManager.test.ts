@@ -335,17 +335,29 @@ describe('moveApplicationTo', () => {
         ]
       }
     });
-    windowManager['currentApplication'] = {
-      name: "TestApp",
-      pid: 1,
-      bundleId: "com.test.app",
-      windows: [
-        {...WINDOWS[0]}
-      ],
-      focusedWindow: {...WINDOWS[0]}
-    }
+    // windowManager['currentApplication'] = {
+    //   name: "TestApp",
+    //   pid: 1,
+    //   bundleId: "com.test.app",
+    //   windows: [
+    //     {...WINDOWS[0]}
+    //   ],
+    //   focusedWindow: {...WINDOWS[0]}
+    // }
 
-    await windowManager.moveTo(SCREEN_PRIMARY, "TestApp", null, [1]);
+    await windowManager.moveTo({
+      applicationName: "TestApp",
+      windows: null,
+      location: [0],
+      layout: { type: "stack", percentage: 50 },
+      monitor: SCREEN_PRIMARY
+    }, {
+      applicationName: null,
+      windows: null,
+      location: [1],
+      layout: { type: "empty", percentage: 50 },
+      monitor: SCREEN_PRIMARY
+    });
 
     expect(removeComputed(windowManager.getState().currentLayout)).toEqual({
       [SCREEN_PRIMARY]: {
