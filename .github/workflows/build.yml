@@ -83,6 +83,9 @@ jobs:
         with:
           node-version: 18
 
+      - name: Install Dependencies
+        run: npm install
+
       # Build builtins
       - name: Install Builtins Dependencies
         run: cd commands/@modal-commander/builtins && npm install
@@ -92,10 +95,6 @@ jobs:
 
       - name: Build Builtins
         run: cd commands/@modal-commander/builtins && npm run build
-
-
-      - name: Install Dependencies
-        run: npm install
 
       - name: Build Release Files
         run: npm run build
