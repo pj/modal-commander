@@ -96,7 +96,14 @@ jobs:
       - name: Build Native Builtins
         run: |
           cd commands/@modal-commander/builtins
-          npx node-gyp configure build --arch=arm64
+          ls -la src/
+          cat binding.gyp
+          node -p "process.arch"
+          node -p "process.versions"
+          npx node-gyp clean
+          npx node-gyp configure build --arch=arm64 --verbose
+          ls -la build/Release/
+          ls -R build
           npm run copy-binary
           #   node-gyp configure build --arch=x64
 
