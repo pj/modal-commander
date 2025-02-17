@@ -9,7 +9,8 @@
   "files": [
     "dist-electron",
     "dist",
-    "commands"
+    "commands",
+    "commands/@modal-commander/builtins/dist"
   ],
   "mac": {
     "artifactName": "ModalCommander.${ext}",
