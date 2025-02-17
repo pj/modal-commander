@@ -94,7 +94,11 @@ jobs:
         run: cd commands/@modal-commander/builtins && npm run build
 
       - name: Build Native Builtins
-        run: cd commands/@modal-commander/builtins && npm run build:native
+        run: |
+          cd commands/@modal-commander/builtins
+          node-gyp configure build --arch=arm64
+          npm run copy-binary
+          #   node-gyp configure build --arch=x64
 
       - name: Build Release Files
         run: npm run build
