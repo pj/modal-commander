@@ -1,5 +1,5 @@
 {
-  description = "Flake for lazy_test dev environment";
+  description = "Flake for Modal commander development";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
@@ -13,8 +13,9 @@
           deps = rec {
             jq = pkgs.jq;
             nodejs_20 = pkgs.nodejs_20;
-            node-gyp = pkgs.nodePackages.node-gyp;
+            # node-gyp = pkgs.nodePackages.node-gyp;
             python312 = pkgs.python312;
+            nix-tree = pkgs.nix-tree;
             default = nodejs_20;
           };
 
