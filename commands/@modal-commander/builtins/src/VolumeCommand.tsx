@@ -15,7 +15,6 @@ export function VolumeCommand(props: VolumeCommandProps) {
         muted: false,
         volume: 0
     })
-    console.log('volumeState', volumeState)
 
     const getVolumeState = useCallback(() => {
         sendInvoke({ command: '@modal-commander/builtins#VolumeCommand', type: 'getState' }).then((state: VolumeState) => {
@@ -47,7 +46,6 @@ export function VolumeCommand(props: VolumeCommandProps) {
     }, []);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        console.log('handleKeyDown', event.key)
         if (event.key === 'm') {
             if (volumeState) {
                 updateVolumeState({...volumeState, muted: !volumeState.muted})

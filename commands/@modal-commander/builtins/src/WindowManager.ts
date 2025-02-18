@@ -80,7 +80,6 @@ export class WindowManager {
       if (focusedApp.bundleId === "com.github.Electron" || focusedApp.name === "Modal Commander") {
         return;
       }
-      console.log(JSON.stringify(focusedApp, null, 2));
       const cachedApp = this.applicationCache.get(focusedApp.bundleId);
       const cachedWindows = cachedApp ? Array.from(cachedApp.values()) : [];
       const focusedWindow = cachedWindows.find(window => window.id === focusedApp.window.id);

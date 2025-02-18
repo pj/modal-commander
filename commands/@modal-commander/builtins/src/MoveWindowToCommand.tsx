@@ -4,8 +4,8 @@ import { DEFAULT_LAYOUT_WIDTH, DEFAULT_LAYOUT_HEIGHT, NodeVisitor, RenderScreenS
 import { FrontendState, VisitDetails } from "./WindowManagementTypes"
 import log from "electron-log"
 import { getRenderDetails } from "./MoveWindowFromCommand"
-import { DownChevron } from "./RightChevron"
-import { RightChevron } from "./RightChevron"
+import { DownChevron } from "./Icons"
+import { RightChevron } from "./Icons"
 import { Key } from "./Key"
 import { deepEquals } from "./Utils"
 

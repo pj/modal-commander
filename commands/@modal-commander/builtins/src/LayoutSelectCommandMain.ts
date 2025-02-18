@@ -18,7 +18,6 @@ export class LayoutSelectCommandMain {
     const monitors = await this.windowManager.getMonitors();
     const matchingLayout = findMatchingScreenSet(layout, monitors);
     if (matchingLayout) {
-      console.log("Initial layout", this.config.defaultLayout, matchingLayout);
       const layoutCopy = JSON.parse(JSON.stringify(matchingLayout));
       this.windowManager.setLayout(layoutCopy);
     }

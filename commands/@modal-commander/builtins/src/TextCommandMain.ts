@@ -3,10 +3,8 @@ export class TextCommandMain {
     }
 
     onStop() {
-        console.log('onStop')
     }
 
     onMessage(message: any) {
-        console.log('onMessage', message)
     }
 }

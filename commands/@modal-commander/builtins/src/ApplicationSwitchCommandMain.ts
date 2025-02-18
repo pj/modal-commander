@@ -7,15 +7,12 @@ export class ApplicationSwitchCommandMain {
   }
 
   onStop() {
-    console.log('onStop')
   }
 
   onMessage(message: any) {
-    console.log('onMessage', message)
   }
 
   async onInvoke(message: any) {
-    console.log('onInvoke', message)
     const script = `activate application "${message.application}"`;
 
     try {

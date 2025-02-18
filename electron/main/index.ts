@@ -142,16 +142,12 @@ function setupWindow() {
     win.loadFile(indexHtml)
   }
 
-  // Test actively push message to the Electron-Renderer
-  // win.webContents.on('did-finish-load', () => {
-  //   win?.webContents.send('main-process-message', new Date().toLocaleString())
-  // })
-
   // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https:')) shell.openExternal(url)
     return { action: 'deny' }
   })
+
 }
 
 function setupTray() {
@@ -185,7 +181,6 @@ async function createWindow() {
 
   messageListeners.set('hide', new (class {
     onMessage(message: any) {
-      // log.silly('hide message received:', message)
       win?.hide();
       win?.webContents.send('main-message', { type: 'resetState' });
     }
@@ -193,17 +188,14 @@ async function createWindow() {
 
   messageListeners.set('quit', new (class {
     onMessage(message: any) {
-      // log.silly('quit message received:', message)
       app.quit();
     }
   }));
 
   ipcMain.on('renderer-message', (event, message) => {
-    // log.silly('message received:', message)
     const command = message.command;
     const listener = messageListeners.get(command);
     if (listener) {
-      // log.silly('listener found:', listener)
       listener.onMessage(message);
       return;
     }
@@ -212,11 +204,9 @@ async function createWindow() {
   })
 
   ipcMain.handle('renderer-invoke', async (event, message) => {
-    // log.silly('message received:', message)
     const command = message.command;
     const listener = messageListeners.get(command);
     if (listener) {
-      // log.silly('listener found:', listener);
       return await listener.onInvoke(message);
     }
     
@@ -229,7 +219,11 @@ async function createWindow() {
     }
   })
 
-  // Auto update
+  win?.on('blur', () => {
+    win?.hide();
+    win?.webContents.send('main-message', { type: 'resetState' });
+  });
+
   update(win as BrowserWindow);
 }
 
@@ -269,6 +263,5 @@ app.on('activate', () => {
 })
 
 app.on('will-quit', () => {
-  // Unregister all shortcuts.
   globalShortcut.unregisterAll()
 })
