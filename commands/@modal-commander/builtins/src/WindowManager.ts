@@ -13,7 +13,6 @@ import {
   VisitDetails
 } from './WindowManagementTypes';
 import log from 'electron-log';
-import { C } from 'vitest/dist/chunks/reporters.0x019-V2';
 
 const require = createRequire(import.meta.url);
 
@@ -81,7 +80,8 @@ export class WindowManager {
       if (focusedApp.bundleId === "com.github.Electron" || focusedApp.name === "Modal Commander") {
         return;
       }
-      const cachedApp = this.applicationCache.get(focusedApp.name);
+      console.log(JSON.stringify(focusedApp, null, 2));
+      const cachedApp = this.applicationCache.get(focusedApp.bundleId);
       const cachedWindows = cachedApp ? Array.from(cachedApp.values()) : [];
       const focusedWindow = cachedWindows.find(window => window.id === focusedApp.window.id);
       this.currentApplication = {
@@ -111,10 +111,10 @@ export class WindowManager {
       }
       this.windowCache.set(window.id, window);
 
-      if (!this.applicationCache.has(window.application)) {
-        this.applicationCache.set(window.application, new Map());
+      if (!this.applicationCache.has(window.bundleId)) {
+        this.applicationCache.set(window.bundleId, new Map());
       }
-      this.applicationCache.get(window.application)?.set(window.id, window);
+      this.applicationCache.get(window.bundleId)?.set(window.id, window);
     }
   }
 
@@ -122,20 +122,6 @@ export class WindowManager {
   public async setLayout(layout: ScreenConfig) {
     this.currentLayout = layout;
     await this.reconcileLayout();
-  }
-
-  private createPinnedLayout(application: string, window: number | string | null, percentage: number): PinnedLayout {
-    const pinned: PinnedLayout = {
-      type: "pinned",
-      application,
-      percentage,
-    }
-    if (typeof window === "string") {
-      pinned.title = window;
-    } else if (typeof window === "number") {
-      pinned.id = window;
-    }
-    return pinned;
   }
 
   private removeSource(
@@ -215,7 +201,7 @@ export class WindowManager {
           return true;
         }
 
-        const newWindows = source.windows?.filter(window => window !== layout.id);
+        const newWindows = source.windows?.filter(window => window !== layout.windowId);
         return newWindows.length === 0;
       }
     }
@@ -235,13 +221,14 @@ export class WindowManager {
         const column = layout.columns[i];
         if (i === dest && ended) {
           if (column.type !== "stack") {
-            if (source.applicationName) {
+            if (source.applicationName && source.bundleId) {
               newColumns.push(
                 {
                   type: "pinned",
                   application: source.applicationName,
                   percentage: column.percentage,
-                  id: source.windows?.[0]
+                  bundleId: source.bundleId,
+                  windowId: source.windows?.[0]
                 }
               )
             } else {
@@ -268,13 +255,14 @@ export class WindowManager {
         const row = layout.rows[i];
         if (i === dest && ended) {
           if (row.type !== "stack") {
-            if (source.applicationName) {
+            if (source.applicationName && source.bundleId) {
               newRows.push(
                 {
                   type: "pinned",
                   application: source.applicationName,
                   percentage: row.percentage,
-                  id: source.windows?.[0]
+                  bundleId: source.bundleId,
+                  windowId: source.windows?.[0]
                 }
               )
             } else {
@@ -307,7 +295,7 @@ export class WindowManager {
           return true;
         }
 
-        const newWindows = destination.windows?.filter(window => window !== layout.id);
+        const newWindows = destination.windows?.filter(window => window !== layout.windowId);
         return newWindows.length === 0;
       }
     }
@@ -375,11 +363,11 @@ export class WindowManager {
 
   private findWindowsForLayout(layout: PinnedLayout): Window[] {
     const windows: Window[] = [];
-    const app = this.applicationCache.get(layout.application);
+    const app = this.applicationCache.get(layout.bundleId);
     if (app) {
-      if (layout.title) {
+      if (layout.windowTitle) {
         for (const window of app.values()) {
-          if (window.title === layout.title || window.id === layout.id) {
+          if (window.title === layout.windowTitle || window.id === layout.windowId) {
             windows.push(window);
           }
         }

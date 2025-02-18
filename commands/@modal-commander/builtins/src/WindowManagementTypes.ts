@@ -17,6 +17,7 @@ export const Window = z.object({
   id: z.number(),
   title: z.string(),
   application: z.string(),
+  bundleId: z.string(),
   bounds: Bounds,
 });
 
@@ -40,8 +41,9 @@ export const EmptyLayout = BaseLayout.extend({
 export const PinnedLayout = BaseLayout.extend({
   type: z.literal("pinned"),
   application: z.string(),
-  title: z.string().optional(),
-  id: z.number().optional(),
+  windowTitle: z.string().optional(),
+  bundleId: z.string(),
+  windowId: z.number().optional(),
   computed: z.array(Window).optional(),
 });
 
@@ -129,5 +131,6 @@ export type VisitDetails = {
     layout: Layout;
     monitor: string;
     applicationName: string | null;
+    bundleId: string | null;
     windows: number[] | null;
 }

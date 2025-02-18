@@ -136,6 +136,21 @@ Napi::Value getWindows(const Napi::CallbackInfo& info) {
             windowObj.Set("id", wid);
         }
         
+        // Get process ID and bundle ID
+        pid_t pid;
+        CFNumberRef ownerPID;
+        if (CFDictionaryGetValueIfPresent(window, kCGWindowOwnerPID, (const void**)&ownerPID)) {
+            CFNumberGetValue((CFNumberRef)ownerPID, kCFNumberIntType, &pid);
+            NSRunningApplication* app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+            if (app) {
+                NSString* bundleId = [app bundleIdentifier];
+                if (bundleId) {
+                    const char* id = [bundleId UTF8String];
+                    windowObj.Set("bundleId", id);
+                }
+            }
+        }
+        
         // Get window owner name (application name)
         char appName[256] = "";
         

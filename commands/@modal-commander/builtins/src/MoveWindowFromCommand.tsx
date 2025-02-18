@@ -268,6 +268,7 @@ function getDetailsFromSource(source: MoveSource | null, windowManagementState: 
                     layout,
                     {
                         applicationName: currentApplication.name,
+                        bundleId: currentApplication.bundleId,
                         windows: null,
                         layout: layout,
                         monitor: monitor,
@@ -291,6 +292,7 @@ function getDetailsFromSource(source: MoveSource | null, windowManagementState: 
                     layout,
                     {
                         applicationName: currentApplication.name,
+                        bundleId: currentApplication.bundleId,
                         windows: currentApplication.focusedWindow ? [currentApplication.focusedWindow.id] : null,
                         layout: layout,
                         monitor: monitor,
@@ -315,6 +317,7 @@ function getDetailsFromSource(source: MoveSource | null, windowManagementState: 
                     layout,
                     {
                         applicationName: window.application,
+                        bundleId: window.bundleId,
                         windows: [window.id],
                         layout: layout,
                         monitor: monitor,
