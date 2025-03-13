@@ -124,7 +124,7 @@ export function SiteBlockerCommand(props: SiteBlockerCommandProps) {
             headerText="Site Blocker"
             inner={
                     siteBlockerState ? (
-                        <>
+                        <div className="card-body">
                             <div className="form-control">
                                 <label className="label cursor-pointer flex flex-row items-center gap-2 justify-start">
                                     <span className="label-text">Sites Available</span>
@@ -142,7 +142,7 @@ export function SiteBlockerCommand(props: SiteBlockerCommandProps) {
                                 {secondsLeft} Minutes Left
                             </div>
                             {errorMessage && <div className="text-xs text-center text-red-500">{errorMessage}</div>}
-                        </>
+                        </div>
                     ) : null
                 }
         />

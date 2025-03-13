@@ -40,8 +40,28 @@ async function handleImportCommands(pathname: string, commandRoots: string[]) {
     );
 
     if (!path.isAbsolute(filePath)) {
-      log.warn('Command not found: ', filePath);
+      log.warn(`Path is not absolute: ${filePath}`);
       continue;
+    }
+
+    try {
+      const stats = await fs.promises.stat(filePath);
+      if (!stats.isFile()) {
+        log.warn(`Path is not a file: ${filePath}`);
+        continue;
+      }
+    } catch (error: any) {
+      switch (error.code) {
+        case 'ENOENT': 
+          log.warn(`File not found: ${filePath}`);
+          continue;
+        case 'EACCES': 
+          log.warn(`Permission denied: ${filePath}`);
+          continue;
+        default:
+          log.error(`Unexpected error: ${error.message}`);
+          throw error;
+      }
     }
 
     // log.info('Command found: ', filePath);
