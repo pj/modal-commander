@@ -22,6 +22,10 @@ import { readdirSync, statSync } from 'node:fs'
 import { CommandDatabase } from './database'
 import { setupProtocol } from './protocol'
 import { loadCommand } from './command'
+import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
+
+const execAsync = promisify(exec)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -79,6 +83,30 @@ const commandRoots = [
 ]
 
 let lastHotkey: any = null;
+let lastFocusedApp: any = null;
+
+async function getFocusedApplication() {
+  if (process.platform === 'darwin') {
+    try {
+      const { stdout } = await execAsync('osascript -e \'tell application "System Events" to get name of first application process whose frontmost is true\'');
+      return stdout.trim();
+    } catch (error) {
+      log.error('Failed to get focused application:', error);
+      return null;
+    }
+  }
+  return null;
+}
+
+async function switchToApplication(appName: string) {
+  if (process.platform === 'darwin') {
+    try {
+      await execAsync(`osascript -e 'activate application "${appName}"'`);
+    } catch (error) {
+      log.error('Failed to switch application:', error);
+    }
+  }
+}
 
 function setupShortcuts(config: ModalCommanderConfig, messageListeners: Map<string, any>) {
   for (const hotkey of config.hotkeys) {
@@ -87,9 +115,14 @@ function setupShortcuts(config: ModalCommanderConfig, messageListeners: Map<stri
         if (hotkey.type === 'command') {
           if (win.isVisible()) {
             win.hide();
+            // Switch back to the previous application if we have it
+            if (lastFocusedApp) {
+              await switchToApplication(lastFocusedApp);
+            }
           } else {
             lastHotkey = hotkey;
-            // log.silly('sending setRootCommand message:', hotkey)
+            // Store the current focused application before showing the window
+            lastFocusedApp = await getFocusedApplication();
             win.webContents.send('main-message', { type: 'setRootCommand', data: hotkey });
             win.show();
           }
@@ -183,11 +216,17 @@ async function createWindow() {
     onMessage(message: any) {
       win?.hide();
       win?.webContents.send('main-message', { type: 'resetState' });
+      if (lastFocusedApp && !message.preventFocusReturn) {
+        switchToApplication(lastFocusedApp);
+      }
     }
   }));
 
   messageListeners.set('quit', new (class {
     onMessage(message: any) {
+      if (lastFocusedApp) {
+        switchToApplication(lastFocusedApp);
+      }
       app.quit();
     }
   }));

@@ -117,8 +117,8 @@ export default function App({ debug }: AppProps) {
         window.ipcRenderer.send('renderer-message', message);
     }, []);
 
-    const handleExit = useCallback(() => {
-        window.ipcRenderer.send('renderer-message', { command: 'hide' });
+    const handleExit = useCallback((preventFocusReturn: boolean = false) => {
+        window.ipcRenderer.send('renderer-message', { command: 'hide', preventFocusReturn });
     }, []);
 
     const sendInvoke = useCallback((message: any) => {

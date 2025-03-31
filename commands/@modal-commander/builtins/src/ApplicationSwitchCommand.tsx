@@ -31,7 +31,7 @@ export function ApplicationSwitchCommand(props: ApplicationSwitchCommandProps) {
                 sendInvoke(
                     { command: '@modal-commander/builtins#ApplicationSwitchCommand', application: application.name }
                 ).then(() => {
-                    handleExit();
+                    handleExit(true);
                 })
                 return;
             }
