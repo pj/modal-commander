@@ -26,6 +26,8 @@ export async function loadCommand(db: CommandDatabase, config: ModalCommanderCon
           )
 
           try {
+            console.log('mainPath', mainPath)
+            console.log('pathToFileURL(mainPath).toString()', pathToFileURL(mainPath).toString())
             // statSync(mainPath)
             const packageMain = await import(pathToFileURL(mainPath).toString())
             for (const [commandName, commandClass] of Object.entries(packageMain.default)) {
