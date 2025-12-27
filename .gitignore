@@ -25,7 +25,7 @@ release
 *.sw?
 
 #lockfile
-package-lock.json
+# package-lock.json - needed for Nix builds
 pnpm-lock.yaml
 yarn.lock
 /test-results/

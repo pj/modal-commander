@@ -25,7 +25,8 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
-        'electron', 
+        'electron',
+        'electron-log',
         'zod'
       ],
       output: {
