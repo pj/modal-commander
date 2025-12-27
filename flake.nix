@@ -59,8 +59,18 @@
               export npm_config_target=10.15
               export npm_config_disturl=https://electronjs.org/headers
               export npm_config_runtime=node
+              # Map Nix platform names to node-gyp architecture names
+              # aarch64-darwin -> arm64, x86_64-darwin -> x64
+              if [ "${pkgs.stdenv.hostPlatform.parsed.cpu.name}" = "aarch64" ]; then
+                export npm_config_arch=arm64
+                export npm_config_target_arch=arm64
+              elif [ "${pkgs.stdenv.hostPlatform.parsed.cpu.name}" = "x86_64" ]; then
+                export npm_config_arch=x64
+                export npm_config_target_arch=x64
+              else
               export npm_config_arch=${pkgs.stdenv.hostPlatform.parsed.cpu.name}
               export npm_config_target_arch=${pkgs.stdenv.hostPlatform.parsed.cpu.name}
+              fi
             ''}
             
             # Build native modules first (before the npm build script runs)

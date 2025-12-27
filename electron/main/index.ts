@@ -77,8 +77,9 @@ let tray: Tray | null = null;
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
+// Commands are in the ASAR, accessible via app.getAppPath()
 const commandRoots = [
-  path.resolve(process.env.APP_ROOT, 'commands'),
+  path.join(app.getAppPath(), 'commands'),
   path.resolve(app.getPath('userData'), 'commands'),
 ]
 
