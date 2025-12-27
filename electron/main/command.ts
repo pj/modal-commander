@@ -9,6 +9,14 @@ export async function loadCommand(db: CommandDatabase, config: ModalCommanderCon
   let messageListeners = new Map<string, any>()
   for (const commandRoot of commandRoots) {
     try {
+      // Check if directory exists before trying to read it
+      try {
+        await fs.access(commandRoot)
+      } catch {
+        // Directory doesn't exist, skip it silently
+        continue
+      }
+      
       const namespaces = await fs.readdir(commandRoot, { withFileTypes: true })
         .then(dirs => dirs.filter(dirent => dirent.isDirectory()))
         

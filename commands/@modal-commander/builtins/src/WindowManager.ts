@@ -41,6 +41,9 @@ export class WindowManager {
   private focusCheckInterval: NodeJS.Timeout | null = null;
 
   constructor() {
+    // When code is inside ASAR, Electron automatically resolves native modules to app.asar.unpacked
+    // Use relative path and let require handle the resolution
+    // If inside ASAR, the path will be resolved to app.asar.unpacked/commands/.../build/Release/...
     this.native = require('../build/Release/WindowFunctions.node');
   }
 

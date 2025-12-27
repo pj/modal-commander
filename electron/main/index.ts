@@ -173,6 +173,8 @@ function setupWindow() {
     win.webContents.openDevTools()
   } else {
     win.loadFile(indexHtml)
+    // Open DevTools in production to see console logs
+    win.webContents.openDevTools()
   }
 
   // Make all links open with the browser, not with the application

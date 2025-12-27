@@ -10,6 +10,8 @@ const require = createRequire(import.meta.url);
 export class VolumeCommandMain {
   private native: any;
   onStart() {
+    // When code is inside ASAR, Electron automatically resolves native modules to app.asar.unpacked
+    // Use relative path and let require handle the resolution
     this.native = require('../build/Release/VolumeCommand.node');
   }
 

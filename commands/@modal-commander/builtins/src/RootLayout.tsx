@@ -1,4 +1,3 @@
-import log from "electron-log"
 import { Key } from "./Key"
 import { Bounds, Layout, Monitor, SCREEN_PRIMARY, WindowManagerLayout, ScreenConfig as BaseScreenConfig, ScreenConfig, VisitDetails } from "./WindowManagementTypes"
 import { findMatchingScreenSet } from "./WindowManagerUtils"
@@ -179,7 +178,7 @@ export function RenderScreenSet({ monitors, screenSet, visitor, layoutWidth, lay
     }
 
     if (!primaryMonitor) {
-        log.warn("No primary monitor found");
+        console.warn("No primary monitor found");
         return;
     }
 
@@ -211,7 +210,7 @@ export function RenderScreenSet({ monitors, screenSet, visitor, layoutWidth, lay
     for (const [monitorName, layout] of Object.entries(screenSet)) {
         const monitor = monitors.find(m => m.name === monitorName || (m.main && monitorName === SCREEN_PRIMARY));
         if (!monitor) {
-            log.warn(`Unable to find monitor ${monitorName} for screen set ${JSON.stringify(screenSet)}`);
+            console.warn(`Unable to find monitor ${monitorName} for screen set ${JSON.stringify(screenSet)}`);
             continue;
         }
         const normalizedY = primaryMonitor.bounds.height - (monitor.bounds.height + monitor.bounds.y);

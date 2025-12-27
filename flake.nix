@@ -69,9 +69,12 @@
           '';
 
           # Build the TypeScript/Vite bundles
+          # Note: The build script runs 'clean' which removes dist, so native modules 
+          # need to be copied after build. However, the code requires from build/Release,
+          # so we need to preserve that directory structure.
           npmBuildScript = "build";
 
-          # Override installPhase to copy the dist directory
+          # Override installPhase to copy the dist directory and preserve build/Release structure
           installPhase = ''
             runHook preInstall
             
@@ -80,10 +83,13 @@
             if [ -d dist ]; then
               cp -r dist $out/dist
             fi
-            # Copy native modules if they're in a separate location
+            # Copy native modules to dist (for electron-builder to package)
             if [ -d build/Release ]; then
               mkdir -p $out/dist
               cp build/Release/*.node $out/dist/ || true
+              # Also preserve build/Release structure since code requires from there
+              mkdir -p $out/build/Release
+              cp build/Release/*.node $out/build/Release/ || true
             fi
             
             runHook postInstall
@@ -134,22 +140,16 @@
             if [ -d ${builtinsPackage}/dist ]; then
               cp -r ${builtinsPackage}/dist/* commands/@modal-commander/builtins/dist/ || true
             fi
+            # Copy native modules build/Release directory (code requires from ../build/Release)
+            if [ -d ${builtinsPackage}/build/Release ]; then
+              echo "Copying native modules build/Release directory..."
+              mkdir -p commands/@modal-commander/builtins/build/Release
+              cp -r ${builtinsPackage}/build/Release/* commands/@modal-commander/builtins/build/Release/ || true
+            fi
           '';
 
-          # Add a build script that skips electron-builder (requires macOS system tools not available in Nix)
-          postPatch = ''
-            # Modify package.json to add a build:app script that skips electron-builder
-            ${pkgs.nodejs_20}/bin/node -e "
-              const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-              pkg.scripts = pkg.scripts || {};
-              pkg.scripts['build:app'] = 'tsc && vite build';
-              fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
-            "
-          '';
-
-          # Use the build:app script that skips electron-builder
-          npmBuildScript = "build:app";
+          # Use the full build script that includes electron-builder
+          npmBuildScript = "build";
 
           # Don't run tests during build
           doCheck = false;
@@ -158,20 +158,76 @@
           installPhase = ''
             runHook preInstall
 
-            mkdir -p $out
+            ${pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              # Copy the electron-builder app bundle to Applications/
+              # electron-builder creates it in release/${version}/mac-* or dist/mac-*
+              mkdir -p $out/Applications
+              APP_BUNDLE_DIR=""
+              
+              # Check release directory first (per electron-builder.json output setting)
+              if [ -d release ]; then
+                # Find the version directory (e.g., release/0.0.30/)
+                VERSION_DIR=$(find release -maxdepth 1 -type d | grep -v "^release$" | head -1)
+                if [ -n "$VERSION_DIR" ]; then
+                  # Check for mac-universal, mac, or mac-<arch> directories
+                  if [ -d "$VERSION_DIR/mac-universal" ]; then
+                    APP_BUNDLE_DIR="$VERSION_DIR/mac-universal"
+                  elif [ -d "$VERSION_DIR/mac" ]; then
+                    APP_BUNDLE_DIR="$VERSION_DIR/mac"
+                  else
+                    # Try architecture-specific directories (mac-arm64, mac-x64, etc.)
+                    APP_BUNDLE_DIR=$(find "$VERSION_DIR" -maxdepth 1 -type d -name "mac-*" | head -1)
+                  fi
+                fi
+              fi
+              
+              # Fallback to dist directory if not found in release
+              if [ -z "$APP_BUNDLE_DIR" ] || [ ! -d "$APP_BUNDLE_DIR" ]; then
+                if [ -d dist/mac-universal ]; then
+                  APP_BUNDLE_DIR="dist/mac-universal"
+                elif [ -d dist/mac ]; then
+                  APP_BUNDLE_DIR="dist/mac"
+                else
+                  # Try architecture-specific directories in dist
+                  APP_BUNDLE_DIR=$(find dist -maxdepth 1 -type d -name "mac-*" | head -1)
+                fi
+              fi
+              
+              if [ -n "$APP_BUNDLE_DIR" ] && [ -d "$APP_BUNDLE_DIR" ]; then
+                echo "Copying electron-builder app bundle from $APP_BUNDLE_DIR..."
+                if ! cp -r "$APP_BUNDLE_DIR"/*.app $out/Applications/ 2>/dev/null; then
+                  echo "Error: Failed to copy app bundle from $APP_BUNDLE_DIR"
+                  exit 1
+                fi
+              else
+                echo "Error: Could not find app bundle in release or dist directories"
+                echo "Searched in: release/${version}/mac-*, dist/mac-*"
+                echo "Available directories:"
+                ls -la release/ 2>/dev/null || echo "  (release directory does not exist)"
+                ls -la dist/ 2>/dev/null | grep -E "^d" || echo "  (dist directory does not exist)"
+                exit 1
+              fi
+            ''}
             
-            # Copy the electron-builder output (DMG, ZIP, etc.)
+            # Copy release directory if it exists (contains DMG, ZIP, etc.)
             if [ -d release ]; then
               echo "Copying release artifacts..."
               cp -r release $out/
             fi
             
-            # Also copy dist and dist-electron for development/testing
+            # Also copy dist and dist-electron for fallback/development (if app bundle wasn't created)
             if [ -d dist ]; then
-              cp -r dist $out/
+              mkdir -p $out/dist
+              cp -r dist/* $out/dist/ 2>/dev/null || true
             fi
             if [ -d dist-electron ]; then
-              cp -r dist-electron $out/
+              mkdir -p $out/dist-electron
+              cp -r dist-electron/* $out/dist-electron/ 2>/dev/null || true
+            fi
+            
+            # Copy commands directory (needed at runtime)
+            if [ -d commands ]; then
+              cp -r commands $out/
             fi
 
             runHook postInstall
@@ -186,12 +242,11 @@
           };
         };
 
-        deps = rec {
+        deps = {
           jq = pkgs.jq;
           nodejs_20 = pkgs.nodejs_20;
           python312 = pkgs.python312;
           nix-tree = pkgs.nix-tree;
-          default = nodejs_20;
         };
 
       in

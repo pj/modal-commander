@@ -3,14 +3,16 @@
   "appId": "dev.modal-commander.app",
   "productName": "Modal Commander",
   "asar": true,
+  "asarUnpack": [
+    "**/build/Release/**"
+  ],
   "directories": {
     "output": "release/${version}"
   },
   "files": [
     "dist-electron",
     "dist",
-    "commands",
-    "commands/@modal-commander/builtins/dist"
+    "commands"
   ],
   "mac": {
     "artifactName": "ModalCommander.${ext}",
